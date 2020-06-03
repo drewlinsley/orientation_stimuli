@@ -1,0 +1,6 @@
+python extract_activities.py orientation_probe_outputs 12 feature_select feature_matrix.npz
+python extract_activities.py plaid_no_surround_outputs 12 activity plaid_no_surround_outputs_data.npy feature_matrix.npz
+python extract_activities.py orientation_tilt_outputs 12 activity orientation_tilt_outputs_data.npy feature_matrix.npz
+python extract_activities.py plaid_surround_outputs 12 activity plaid_surround_outputs_data.npy feature_matrix.npz
+python extract_activities.py contrast_modulated_outputs 13 activity contrast_modulated_outputs_data.npy feature_matrix.npz
+ 
