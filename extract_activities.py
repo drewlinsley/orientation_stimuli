@@ -168,7 +168,7 @@ def main(basis_function="step"):
             orientations = np.arange(180)
             prefOrientation = np.arange(0, 180, 180 / nChannels)
             basis_vectors = np.zeros((180,nChannels))
-            for iChannel in range(nChannels)
+            for iChannel in range(nChannels):
                 basis =  np.cos(2 * np.pi * (orientations - prefOrientation[iChannel]) / 180)
                 basis[basis < 0] = 0
                 basis = basis ** exponent
