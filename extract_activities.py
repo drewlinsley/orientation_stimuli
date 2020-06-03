@@ -167,18 +167,17 @@ def main(basis_function="step"):
             exponent = 7
             orientations = np.arange(180)
             prefOrientation = np.arange(0, 180, 180 / nChannels)
-            basis_vectors = np.zeros((180,nChannels))
+            indicator_matrix = np.zeros((180,nChannels))
             for iChannel in range(nChannels):
                 basis =  np.cos(2 * np.pi * (orientations - prefOrientation[iChannel]) / 180)
                 basis[basis < 0] = 0
                 basis = basis ** exponent
-                basis_vectors[:,iChannel] = basis
+                indicator_matrix[:,iChannel] = basis
         else:
             raise NotImplementedError(basis_function)
         # indicator_matrix = get_population_circular(indicator_matrix)
         # indicator = np.arange(num_bins)
         # indicator_matrix = np.asarray([np.roll(indicator, x) for x in range(num_bins)])
-        indicator_matrix = basis_vectors
         model = linear_model.LogisticRegression(random_state=0, penalty='none', multi_class='multinomial')
         # model = linear_model.LinearRegression()
         means = responses.mean()
