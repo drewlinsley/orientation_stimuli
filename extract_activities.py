@@ -117,7 +117,7 @@ def screen(r1, lambda1, theta, r1min=None, r1max=None, lambda1min=None, lambda1m
 # r2, theta2, lambda2, shift2, dual_center):
 
 
-def main():
+def main(basis_function="step"):
     import matplotlib.pyplot as plt
 
     file_name = sys.argv[1]
@@ -157,23 +157,27 @@ def main():
         thetas = np.asarray([float(x.split("_")[-1].split(".")[0]) for x in image_paths])
 
         # Second quantize those into 10 degree bins
-        bin_degrees = 1.
+        bin_degrees = 5
         num_bins = int(len(thetas) / bin_degrees)
         bins = pd.qcut(thetas, num_bins, labels=False)
-        # indicator_matrix = np.eye(num_bins)[bins]
+        if basis_function == "step":
+            indicator_matrix = np.eye(num_bins)[bins]
+        elif basis_function == "cos":
+            nChannels = num_bins
+            exponent = 7
+            orientations = np.arange(180)
+            prefOrientation = np.arange(0, 180, 180 / nChannels)
+            basis_vectors = np.zeros((180,nChannels))
+            for iChannel in range(nChannels)
+                basis =  np.cos(2 * np.pi * (orientations - prefOrientation[iChannel]) / 180)
+                basis[basis < 0] = 0
+                basis = basis ** exponent
+                basis_vectors[:,iChannel] = basis
+        else:
+            raise NotImplementedError(basis_function)
         # indicator_matrix = get_population_circular(indicator_matrix)
         # indicator = np.arange(num_bins)
         # indicator_matrix = np.asarray([np.roll(indicator, x) for x in range(num_bins)])
-        nChannels = 20;
-        exponent = 7;
-        orientations = np.arange(180);
-        prefOrientation = np.arange(0, 180, 180/nChannels)
-        basis_vectors = np.zeros((180,nChannels))
-        for iChannel in range(nChannels): 
-            basis =  np.cos(2*np.pi*(orientations - prefOrientation[iChannel])/180);
-            basis[basis<0] = 0;
-            basis = basis ** exponent;
-            basis_vectors[:,iChannel] = basis;
         indicator_matrix = basis_vectors
         model = linear_model.LogisticRegression(random_state=0, penalty='none', multi_class='multinomial')
         # model = linear_model.LinearRegression()
