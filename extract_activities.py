@@ -197,7 +197,7 @@ def main(basis_function="cos", model_type="pls", debug=False, decompose=False, n
             diff = responses.shape[0] - indicator_matrix.shape[0]
             indicator_matrix = np.concatenate((indicator_matrix, indicator_matrix[0][None].repeat(diff, 0)), 0)  # noqa
             indicator_matrix_plot = indicator_matrix
-            
+
         if cross_validate and model_type == "pls":
             rsquared = []
             for nc in tqdm(range(responses.shape[-1]), desc="Cross validating PLS", total=responses.shape[-1]):   # noqa
@@ -211,10 +211,8 @@ def main(basis_function="cos", model_type="pls", debug=False, decompose=False, n
                 rsquared.append(
                     metrics.r2_score(y_true=indicator_matrix, y_pred=preds))
             rsquared = np.asarray(rsquared)
-            # components = (
-            #     np.diff(rsquared) > 0.0001).sum()  # Threshold at 99.9% of cumvar
             components = (
-                np.diff(rsquared) > 0.00001).sum()  # Threshold at 99.9% of cumvar
+                np.diff(rsquared) > 0.00001).sum()  # noqa Threshold at 99.9% of cumvar
             print("Keeping {} components".format(components))
             model = cross_decomposition.PLSRegression(
                 n_components=components + 1,

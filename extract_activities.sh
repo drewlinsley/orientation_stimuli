@@ -21,6 +21,7 @@ python extract_activities.py plaid_surround_outputs 12 activity plaid_surround_o
 python extract_activities.py contrast_modulated_outputs 14 activity contrast_modulated_outputs_data.npy feature_matrix.npz
 python extract_activities.py contrast_modulated_no_surround_outputs 14 activity contrast_modulated_no_surround_outputs_data.npy feature_matrix.npz save_images
  
+python plot_orientation_responses.py
 python tb_fig4b.py
 python tb_fig2.py
 python bwc_fig4a.py

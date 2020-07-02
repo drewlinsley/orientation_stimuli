@@ -64,7 +64,7 @@ for c in range(4):
 
         # Now load the image
         ax = plt.subplot(4, 4, count + 8)
-        ax.imshow(img_data[idx3a[count - 8]])
+        ax.imshow(img_data[idx3a[count - 8], ..., 0], cmap="Greys_r")
         ax.axis("off")
         count += 1
 plt.show()
