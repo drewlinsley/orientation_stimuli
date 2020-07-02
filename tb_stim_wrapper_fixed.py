@@ -30,15 +30,15 @@ else:
 args.image_size = [500, 500]
 # args.r1_range = [110, 111]  # [100, 120]
 args.r1_range = [110, 111]  # [100, 120]
-args.r1_range = [130, 131]  # [100, 120]
+args.r1_range = [150, 151]  # [100, 120]
 # args.r1_range = [80, 81]  # [100, 120]
+# args.lambda_range = [30, 90]  # [30, 90]
 args.lambda_range = [60, 61]  # [30, 90]
-# args.lambda_range = [30, 31]  # [30, 90]
 
 # args.theta1_range = [22.5, 67.5]  # H/TD
 # args.theta2_range = [22.5, 67.5]  # H/TD
-args.theta1_range = [-90, 90]  # H/TD
-args.theta2_range = [-90, 90]  # H/TD
+args.theta1_range = [175, 185]  # H/TD
+args.theta2_range = [175, 185]  # H/TD
 # args.TB_stim = True
 dual_centers = [180]
 control_stim = False
@@ -52,7 +52,7 @@ elif dataset_root == "orientation_tilt":
     control_stim = True  # Produce tilt-illusion-style stim (Fig. 2 of T&B)
 elif dataset_root == "orientation_probe":
     dual_centers = [0]  # Only shows orientation
-elif dataset_root == "orientation_probe_no_surround":
+elif dataset_root == "orientation_probe_no_surround" or dataset_root == "orientation_probe_no_surround_theta_0":
     dual_centers = [0]  # Only shows orientation
     surround = False
 else:

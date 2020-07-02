@@ -112,7 +112,7 @@ def from_wrapper(args, train=True, dual_centers=[90], control_stim=False, surrou
         ##### SAMPLE IMAGE PARAMETERS
         r1, lmda, theta1 = combo
         theta2 = theta1
-        shift1 = 0
+        shift1 = 0  # 180
         if train:
             r2=None
             theta2=None

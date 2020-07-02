@@ -1,123 +1,26 @@
 import numpy as np
-import re
 import os
 import sys
 from glob import glob
-from sklearn import linear_model
+from sklearn import linear_model, cross_decomposition
 import pandas as pd
-from sklearn.utils.extmath import safe_sparse_dot                                                    
+from sklearn.utils.extmath import safe_sparse_dot
+from sklearn import decomposition, metrics
+from tqdm import tqdm
 from joblib import dump, load
-MASTER_MODEL_NAME = "linear_model.joblib"
-import scipy as sp
-from scipy import stats
+# import scipy as sp
+# from scipy import stats
 # DEFAULT_FDOMAIN = (0., 1.)#(-sp.pi, sp.pi)
 # DEFAULT_SCALE_CIRCULAR = 1.0/sp.sqrt(5.)
 # NOISE_LOC = 0.0
 # NOISE_SCALE = 0.0
 DEFAULT_FDOMAIN = 0
 DEFAULT_SCALE_CIRCULAR = 0
+MASTER_MODEL_NAME = "linear_model.joblib"
+MASTER_PREPROC_NAME = "preproc.joblib"
 
 
-def get_population_circular(stimulus, npoints=180, fdomain=DEFAULT_FDOMAIN,
-    scale=DEFAULT_SCALE_CIRCULAR):
-    """"""
-
-    unit2ang = lambda a: (a - fdomain[0]) \
-        /(fdomain[1]-fdomain[0]) * 2 * sp.pi - sp.pi
-
-    # Create 'npoints' regularly-spaced tuning curves in the desired range 'fdomain'
-    z, (h, w) = sp.linspace(fdomain[0], fdomain[1], npoints), stimulus.shape
-    population = sp.zeros((npoints, h, w))
-
-    z = unit2ang(z)
-    s = unit2ang(stimulus)
-
-    for preferred, sl in zip(z, population):
-        kappa = 1.0 / scale ** 2
-        sl[:] = stats.vonmises.pdf(s, loc=preferred, kappa=kappa)
-
-    return population
-
-
-def orientation_diff(array1, array2):
-    concat = np.concatenate((np.expand_dims(array1, axis=1),
-                             np.expand_dims(array2, axis=1)), axis=1)
-    diffs = np.concatenate((np.expand_dims(concat[:,0] - concat[:,1], axis=1),
-                            np.expand_dims(concat[:,0] - concat[:,1] - 180, axis=1),
-                            np.expand_dims(concat[:,0] - concat[:,1] + 180, axis=1)), axis=1)
-    diffs_argmin = np.argmin(np.abs(diffs), axis=1)
-    return [idiff[argmin] for idiff, argmin in zip(diffs, diffs_argmin)]
-
-
-def cluster_points(xs, ys, stepsize):
-    xss = list(xs)
-    sort_args = np.array(xss).argsort()
-    xss.sort()
-    ys_sorted = np.array(ys)[sort_args]
-
-    x_accumulator = []
-    y_mu = []
-    y_25 = []
-    y_75 = []
-    x_perbin = []
-    y_perbin = []
-    icut = -90 + stepsize
-
-    for ix, iy in zip(xss, ys_sorted):
-        if ix < icut:
-            x_perbin.append(ix)
-            y_perbin.append(iy)
-        else:
-            if len(y_perbin) > 0:
-                x_accumulator.append(icut - stepsize / 2)
-                y_mu.append(np.median(y_perbin))
-                y_25.append(np.percentile(y_perbin, 25))
-                y_75.append(np.percentile(y_perbin, 75))
-            icut += stepsize
-            x_perbin = []
-            y_perbin = []
-    return x_accumulator, y_mu, y_25, y_75
-
-
-def collapse_points(cs_diff, out_gt_diff):
-    cs_diff_collapsed =[]
-    out_gt_diff_collapsed = []
-    for ix, iy in zip(cs_diff, out_gt_diff):
-        if ix < -10:
-            cs_diff_collapsed.append(-ix)
-            out_gt_diff_collapsed.append(-iy)
-        else:
-            cs_diff_collapsed.append(ix)
-            out_gt_diff_collapsed.append(iy)
-    return cs_diff_collapsed, out_gt_diff_collapsed
-
-
-def screen(r1, lambda1, theta, r1min=None, r1max=None, lambda1min=None, lambda1max=None, thetamin=None, thetamax=None):
-    if np.array(r1).size > 1:
-        cond = np.ones_like(r1).astype(np.bool)
-    else:
-        cond = True
-    if r1min is not None:
-        cond = cond * (r1 > r1min)
-    if r1max is not None:
-        cond = cond * (r1 < r1max)
-    if lambda1min is not None:
-        cond = cond * (lambda1 > lambda1min)
-    if lambda1max is not None:
-       cond = cond * (lambda1 < lambda1max)
-    if thetamin is not None:
-        cond = cond * ((theta > thetamin) | (theta > thetamin+180))
-    if thetamax is not None:
-        cond = cond * (theta < thetamax)
-    return cond
-
-
-# im_sub_path, im_fn, iimg,
-# r1, theta1, lambda1, shift1,
-# r2, theta2, lambda2, shift2, dual_center):
-
-
-def main(basis_function="step"):
+def main(basis_function="cos", model_type="pls", debug=False, decompose=False, normalize=True, cross_validate=True):
     import matplotlib.pyplot as plt
 
     file_name = sys.argv[1]
@@ -126,6 +29,11 @@ def main(basis_function="step"):
     output_name = sys.argv[4]
     if len(sys.argv) >= 6:
         feature_idx = sys.argv[5]
+    save_images = False
+    if len(sys.argv) >= 7:
+        save_images = True
+    if model_type != "pls":
+        cross_validate = False
     paths = glob(os.path.join(file_name, "*.npz"))
     meta = glob(os.path.join(file_name, "*.npy"))[0]
     paths.sort(key=os.path.getmtime)
@@ -134,100 +42,245 @@ def main(basis_function="step"):
 
     out_data_arr = out_data['test_dict']
     meta_arr = np.reshape(
-        np.load(meta, allow_pickle=True), [-1, meta_dim])
+        np.load(meta, allow_pickle=True, encoding='latin1'), [-1, meta_dim])
 
     # thetas = meta_arr[:, 4].astype(np.float32)
     # plaids = meta_arr[:, -1].astype(np.float32)
     # unique_thetas = np.unique(thetas)
 
     image_paths = np.asarray(
-        [x['image_paths'][0].split(os.path.sep)[-1] for x in out_data_arr])
-    target_image_paths = meta_arr[:, 1]
-    assert np.all(image_paths == target_image_paths)
+        [str(x['image_paths'][0]).split(os.path.sep)[-1].strip("'") for x in out_data_arr])
+    target_image_paths = meta_arr[:len(image_paths), 1]
+    # assert np.all(image_paths == target_image_paths)
+    image_paths = image_paths.astype(target_image_paths.dtype)
+    if np.all(image_paths != target_image_paths):
+        print("Model image_paths are different than meta image paths")
 
     responses = []
+    images = []
     for d in out_data_arr:
-        responses.append(d['ephys'].squeeze(0))
-    responses = np.asarray(responses)
+        responses.append(d['pre_ephys'].squeeze(0))
+        if save_images:
+            images.append(d['images'].squeeze())
+        # responses.append(d['logits'].squeeze(0))
+        # plt.imshow(d['images'].squeeze()[..., 0], cmap='Greys_r');plt.show()
+        # responses.append(d['ephys'].squeeze(0))
+        # responses.append(d['pool_act_5max'].squeeze())
+        # responses.append(d['pool_act_10max'].squeeze())
+        # responses.append(d['pool_act_5mean'].squeeze())
+        # responses.append(d['pool_act_10mean'].squeeze())
+
+        # responses.append(d['fpool_act_5max'].squeeze())
+        # responses.append(d['fpool_act_10max'].squeeze())
+        # responses.append(d['fpool_act_5mean'].squeeze())
+        # responses.append(d['fpool_act_10mean'].squeeze())
+
+    if save_images:
+        output_image_name = "images_{}".format(output_name)
+        np.save(output_image_name, images)
+        print("Saved images to {}".format(output_image_name))
+
+    # responses = np.asarray(responses)
+    responses = np.maximum(np.asarray(responses), 0.)
+
+    # # Align meta with the activities (slow)
+    # aligner = []
+    # for meta_row in meta_arr:
+    #     for i, p in enumerate(image_paths):
+    #         if meta_row[1] == p:
+    #             aligner.append(i)
+    #             break
+    # aligner = np.asarray(aligner)
+    # import ipdb;ipdb.set_trace()
+    # responses = responses[aligner]
 
     if analysis == "feature_select":
+        cutoff = (responses.mean(0) / (responses.std(0) + 1e-8))
+        idx = np.argsort(cutoff)[::-1][:int(responses.shape[1] * (2. / 3.))]
+        # cutoff = np.abs(responses.mean(0))
+        # idx = np.argsort(cutoff)[::-1][:int(responses.shape[1] * (1. / 3.))]
+
+        # idx = np.argsort(cutoff)[::-1][:int(responses.shape[1] * 0.33)]
+        # idx = np.where(np.abs(cutoff) > 2)[0]
+        print("Keeping {} features".format(len(idx)))
+        responses = responses[:, idx]
+        # np.savez(output_name, idx=idx, responses=responses)
+
         # # Train a linear model to get preferred orientation partitions
 
         # First get image orientations
-        thetas = np.asarray([float(x.split("_")[-1].split(".")[0]) for x in image_paths])
+        # thetas = np.unique(np.asarray(
+        #     [
+        #         float(x.split("_")[-1].split(".")[0])
+        #         for x in image_paths]))
+        meta_arr = meta_arr[:len(responses)]
+        # meta_arr = meta_arr[:500]
+        # responses = responses[:500]
+        thetas = np.unique(meta_arr[:, 4])
 
         # Second quantize those into 10 degree bins
-        bin_degrees = 5
+        bin_degrees = 1
         num_bins = int(len(thetas) / bin_degrees)
         bins = pd.qcut(thetas, num_bins, labels=False)
         if basis_function == "step":
-            indicator_matrix = np.eye(num_bins)[bins]
+            indicator_matrix_plot = np.eye(num_bins)[bins]
+            indicator_matrix = bins
+            if model_type != "logistic":
+                indicator_matrix = indicator_matrix_plot
+            indicator_matrix = np.roll(
+                indicator_matrix, bin_degrees // 2, axis=0)
+            # indicator_matrix_plot = indicator_matrix
         elif basis_function == "cos":
             nChannels = num_bins
-            exponent = 7
+            exponent = 1
             orientations = np.arange(180)
             prefOrientation = np.arange(0, 180, 180 / nChannels)
-            indicator_matrix = np.zeros((180,nChannels))
+            indicator_matrix = np.zeros((180, nChannels))
             for iChannel in range(nChannels):
-                basis =  np.cos(2 * np.pi * (orientations - prefOrientation[iChannel]) / 180)
-                basis[basis < 0] = 0
+                basis = np.cos(2 * np.pi * (
+                    orientations - prefOrientation[iChannel]) / 180)
+                # basis[basis < 0] = 0
                 basis = basis ** exponent
-                indicator_matrix[:,iChannel] = basis
+                indicator_matrix[:, iChannel] = basis
+            indicator_matrix_plot = indicator_matrix
         else:
             raise NotImplementedError(basis_function)
-        # indicator_matrix = get_population_circular(indicator_matrix)
-        # indicator = np.arange(num_bins)
-        # indicator_matrix = np.asarray([np.roll(indicator, x) for x in range(num_bins)])
-        model = linear_model.LogisticRegression(random_state=0, penalty='none', multi_class='multinomial')
-        # model = linear_model.LinearRegression()
+        if model_type == "logistic":
+            model = linear_model.LogisticRegression(random_state=0, multi_class='ovr', max_iter=1000)
+        elif model_type == "linear":
+            model = linear_model.LinearRegression(fit_intercept=False, normalize=False)
+        elif model_type == "lasso":
+            # model = linear_model.MultiTaskLassoCV(cv=2, normalize=True, n_jobs=2, fit_intercept=True, verbose=True, max_iter=100000, random_state=0)
+            # model = linear_model.Lasso(positive=True, alpha=0.1, fit_intercept=False, max_iter=100000, random_state=0)
+            model = linear_model.MultiTaskLasso(positive=True, alpha=0.1, fit_intercept=False, max_iter=100000, random_state=0)
+        elif model_type == "ridge":
+            model = linear_model.Ridge(normalize=False, alpha=1e-4, fit_intercept=True)
+        elif model_type == "pls":
+            model = cross_decomposition.PLSRegression(n_components=128, scale=False, tol=1e-12, max_iter=1000)
+        elif model_type == "argmax":
+            model = None
+        else:
+            raise NotImplementedError(model_type)
+
+        # Remove 180 degrees
+        meta_col = meta_arr[:, 4].astype(int)
+        if meta_col.max() <= 90:
+            meta_col = meta_col + 90
+        else:
+            meta_col = meta_col - 90
+        meta_col[meta_col == 179] = 0
+        meta_col[meta_col == 180] = 1
+        indicator_matrix = indicator_matrix[:, :-2]
+        indicator_matrix = indicator_matrix[meta_col]
+
+        # Make the target nonnegative
+        indicator_matrix = indicator_matrix - indicator_matrix.min()
+        indicator_matrix = indicator_matrix / indicator_matrix.max()
+        indicator_matrix_plot = indicator_matrix
+
+        if decompose:
+            preproc = decomposition.NMF(n_components=64, random_state=0, verbose=False, alpha=0.)
+            # preproc = decomposition.FastICA(n_components=12, random_state=0, whiten=True, max_iter=10000)
+            # preproc = decomposition.PCA(n_components=12, random_state=0, whiten=True)
+            preproc.fit(responses)
+            responses = preproc.transform(responses)
+            dump(preproc, MASTER_PREPROC_NAME)
+
         means = responses.mean()
-        stds = responses.std()
-        # responses = (responses - means) / stds
-        import ipdb;ipdb.set_trace()
-        clf = model.fit(responses, indicator_matrix)
+        stds = responses.std() + 1e-12
+        if normalize:
+            responses = (responses - means) / stds
+            # responses = (responses - means)  #  / stds
+        # indicator_matrix = (indicator_matrix - indicator_matrix.mean(0))
+        # indicator_matrix = (indicator_matrix - indicator_matrix.mean(0)) / (indicator_matrix.std(0) + 1e-12)
+        if "both" in file_name:
+            diff = responses.shape[0] - indicator_matrix.shape[0]
+            indicator_matrix = np.concatenate((indicator_matrix, indicator_matrix[0][None].repeat(diff, 0)), 0)  # noqa
+            indicator_matrix_plot = indicator_matrix
+            
+        if cross_validate and model_type == "pls":
+            rsquared = []
+            for nc in tqdm(range(responses.shape[-1]), desc="Cross validating PLS", total=responses.shape[-1]):   # noqa
+                model = cross_decomposition.PLSRegression(
+                    n_components=nc + 1,
+                    scale=True,
+                    tol=1e-12,
+                    max_iter=10000)
+                clf = model.fit(responses, indicator_matrix)
+                preds = clf.predict(responses)
+                rsquared.append(
+                    metrics.r2_score(y_true=indicator_matrix, y_pred=preds))
+            rsquared = np.asarray(rsquared)
+            # components = (
+            #     np.diff(rsquared) > 0.0001).sum()  # Threshold at 99.9% of cumvar
+            components = (
+                np.diff(rsquared) > 0.00001).sum()  # Threshold at 99.9% of cumvar
+            print("Keeping {} components".format(components))
+            model = cross_decomposition.PLSRegression(
+                n_components=components + 1,
+                scale=True,
+                tol=1e-12,
+                max_iter=10000)
+        elif cross_validate:
+            raise RuntimeError("cross_validate is True but model is not PLS.")
+        if model is None:
+            # Selected argmax
+            clf = np.argmax(responses, 1)
+        else:
+            clf = model.fit(responses, indicator_matrix)
         dump(clf, MASTER_MODEL_NAME)
+        np.savez(output_name, idx=idx, means=means, stds=stds)
 
         # Third, plot Y and X to share with lax
-        f = plt.figure()
-        plt.subplot(131)
-        plt.title('Y')
-        plt.imshow(indicator_matrix)
-        plt.subplot(132)
-        plt.title('X')
-        plt.imshow(responses)
-        plt.subplot(133)
-        plt.title('Parameters')
-        plt.imshow(clf.coef_.T)
-        plt.show()
-        plt.close(f)
+        if debug:
+            f = plt.figure()
+            plt.subplot(131)
+            plt.title('Y')
+            plt.imshow(indicator_matrix_plot)
+            plt.subplot(132)
+            plt.title('X')
+            plt.imshow(responses)
+            plt.subplot(133)
+            plt.title('Parameters')
+            plt.imshow(clf.coef_.T)
+            plt.show()
+            plt.close(f)
 
-        # cutoff = responses.std(0)
-        # idx = np.argsort(
-        #     cutoff)[::-1][:int(responses.shape[1] * 0.05)]
-        # idx = responses.std(0) > cutoff
-        # np.savez(output_name, idx=idx, responses=responses)
-        np.savez(output_name, means=means, stds=stds)
     elif analysis == "activity":
-        # filters = np.load(feature_idx)
-        # idx = filters['idx']
+        moments = np.load(feature_idx)
+        idx = moments['idx']
         # optimal_orientation = np.argmax(
         #     filters['responses'].sum(-1) / filters['responses'].std(-1))
-        # # responses = responses[:, idx]
         # responses = responses[optimal_orientation:, idx]
-        moments = np.load(feature_idx)
         means = moments['means']
         stds = moments['stds']
-        responses = (responses - means) / stds
+        responses = responses[:, idx]
+        # responses = np.maximum(responses, 0) / responses.max()
+        # assert (responses < 0).sum() == 0
         clf = load(MASTER_MODEL_NAME)
-        responses = safe_sparse_dot(
-            responses,
-            clf.coef_.T,
-            dense_output=True) + clf.intercept_
+        if decompose:
+            preproc = load(MASTER_PREPROC_NAME)
+            responses = preproc.transform(responses)
+        if normalize:
+            responses = (responses - means) / stds
+            # responses = (responses - means)  # / stds
+        if model_type == "pls":
+            responses = clf.predict(responses)
+        elif model_type == "argmax":
+            # "electrophys"
+            responses = responses[clf]
+        else:
+            responses = safe_sparse_dot(
+                responses,
+                clf.coef_.T,
+                dense_output=True) + clf.intercept_
+        # responses = stds * (responses + means)
+        # assert (responses < 0).sum() == 0
         np.save(output_name, responses)
     else:
         raise NotImplementedError(analysis)
     print("Finished {}".format(file_name))
 
+
 if __name__ == '__main__':
     main()
-

@@ -32,10 +32,12 @@ def create_sinusoid(imsize, theta, lmda, shift, amplitude=1.):
     return stimuli
 
 def create_image(imsize,
-                 r1, theta1, lambda1, shift1,
+                 r1, theta1, lambda1, shift1, contrast1, contrast2,
                  r2=None, theta2=None, lambda2=None, shift2=None, dual_center=False, surround=True):
     mask1 = create_annuli_mask(r1, imsize)
     sin1 = create_sinusoid(imsize, theta1, lambda1, shift1)
+    sin1 *= contrast1
+
     if dual_center and shift2 is not None:
         if dual_center == True:
             dual_center = lambda1 + np.random.choice(TB_LIST)
@@ -43,28 +45,32 @@ def create_image(imsize,
             shift2 = shift1
         sindual = create_sinusoid(imsize, dual_center, lambda2, shift2)
         # TODO: Put the random TB_LIST into the meta file
+        sindual *= contrast2
         sin1 = (np.stack((sin1, sindual), -1)).mean(-1)
     if r2 is not None:
         if r2<=r1:
             raise ValueError('r2 should be greater than r1')
         mask2 = create_annuli_mask(r2, imsize)
         sin2 = create_sinusoid(imsize, theta2, lambda2, shift2)
+        sindual *= contrast2
         if not surround:
             sin2 = np.zeros_like(sin2)
         image = sin2*mask2
     else:
         image = np.zeros((imsize[0], imsize[1]))
     image = image*(1-mask1) + sin1*(mask1)
+    image += 1
+    image *= 127.5
     return image
 
 def accumulate_meta(array,
                     im_sub_path, im_fn, iimg,
                     r1, theta1, lambda1, shift1,
-                    r2, theta2, lambda2, shift2, dual_center, contrast):
+                    r2, theta2, lambda2, shift2, dual_center, contrast1, contrast2):
     # NEW VERSION
     array += [im_sub_path, im_fn, iimg,
               r1, theta1, lambda1, shift1,
-              r2, theta2, lambda2, shift2, dual_center, contrast]
+              r2, theta2, lambda2, shift2, dual_center, contrast1, contrast2]
     return array
 
 def save_metadata(metadata, contour_path, batch_id):
@@ -77,7 +83,7 @@ def save_metadata(metadata, contour_path, batch_id):
     with open(os.path.join(metadata_path, metadata_fn), "wb") as f:
         pickle.dump(metadata, f, protocol=2)
 
-def from_wrapper(args, train=True, dual_centers=[90], surround=True):  # -90, -60, -30, 0, 60]):
+def from_wrapper(args, train=True, dual_centers=[90], control_stim=False, surround=True):  # -90, -60, -30, 0, 60]):
     import time
     import scipy
 
@@ -102,19 +108,20 @@ def from_wrapper(args, train=True, dual_centers=[90], surround=True):  # -90, -6
     theta1_range = np.arange(args.theta1_range[0], args.theta1_range[1])
     theta2_range = np.arange(args.theta2_range[0], args.theta2_range[1])
     contrast_range = args.contrast_range  # np.arange(args.contrast_range[0], args.contrast_range[1])
-    combos = [[i, j, k, l] for i in r1_range 
+    combos = [[i, j, k, l, m] for i in r1_range 
                  for j in lambda_range 
                  for k in theta1_range
-                 for l in contrast_range]
+                 for l in contrast_range
+                 for m in contrast_range]
     for iimg, combo in tqdm(enumerate(combos), total=len(combos), desc="Building dataset"):
         t = time.time()
         # print('Image# : %s' % (iimg))
         im_fn = "sample_%s.png" % (iimg)
 
         ##### SAMPLE IMAGE PARAMETERS
-        r1, lmda, theta1, contrast = combo
+        r1, lmda, theta1, contrast1, contrast2 = combo
         theta2 = theta1
-        shift1 = 0
+        shift1 = 0  # 180
         if train:
             r2=None
             theta2=None
@@ -125,13 +132,13 @@ def from_wrapper(args, train=True, dual_centers=[90], surround=True):  # -90, -6
         shift2 = shift1
         for dual_center in dual_centers:
             # dual_center += theta1
+            if control_stim:
+                theta1 = dual_center
+                dual_center = False
             img = create_image(
                 args.image_size,
                 r1, theta1, lmda, shift1,
-                r2=r2, theta2=theta2, lambda2=lmda, shift2=shift2, dual_center=dual_center, surround=surround)
-            img *= contrast
-            img += 1
-            img *= 127.5
+                r2=r2, theta2=theta2, lambda2=lmda, shift2=shift2, dual_center=dual_center, surround=surround, contrast1=contrast1, contrast2=contrast2)
             if (args.save_images):
                 imageio.imwrite(os.path.join(args.dataset_path, im_sub_path, im_fn), img.astype(np.uint8))
             if (args.save_metadata):
@@ -139,7 +146,7 @@ def from_wrapper(args, train=True, dual_centers=[90], surround=True):  # -90, -6
                     metadata,
                     im_sub_path, im_fn, iimg,
                     r1, theta1, lmda, shift1,
-                    r2, theta2, lmda, shift2, dual_center=dual_center, contrast=contrast)
+                    r2, theta2, lmda, shift2, dual_center=dual_center, contrast1=contrast1, contrast2=contrast2)
             elapsed = time.time() - t
             # print('PER IMAGE : ', str(elapsed))
     if (args.save_metadata):
