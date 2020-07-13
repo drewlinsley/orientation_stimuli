@@ -6,6 +6,8 @@ from matplotlib import pyplot as plt
 surround = np.load('contrast_modulated_outputs_data.npy')
 no_surround = np.load('contrast_modulated_no_surround_outputs_data.npy')
 
+no_surround = surround
+
 stride = np.floor(180 / surround.shape[-1]).astype(int)
 stride = np.maximum(stride, 1)
 # thetas = {0: -90, 30//5: -60, 60//5: -30, 90//5: 0, 120//5: 30, 150//5: 60}
@@ -29,8 +31,8 @@ contrasts = (metas[:, -2:]).astype(float)
 # surround = surround.reshape(5, 5, 180)  # [..., 0]
 
 # Roll so that they start at -45
-no_surround = np.roll(no_surround, 45, axis=-1)
-surround = np.roll(surround, 45, axis=-1)
+no_surround = np.roll(no_surround, -90, axis=-1)
+surround = np.roll(surround, -90, axis=-1)
 
 ranges = np.arange(-45, 135, stride)
 ranges = ranges[:surround.shape[-1]]
@@ -60,16 +62,15 @@ for c in range(4):
             plt.xticks([-45, 0, 45, 90, 135])
         else:
             ax.set_xticklabels([""])
-        plt.ylim([-0, 1])
+        # plt.ylim([0.45, 0.6])
 
         # Now load the image
         ax = plt.subplot(4, 4, count + 8)
-        ax.imshow(img_data[idx3a[count - 8], ..., 0], cmap="Greys_r")
+        ax.imshow(img_data[idx3a[count - 8], ..., 0], cmap="Greys_r", vmin=0, vmax=255)
         ax.axis("off")
         count += 1
 plt.show()
 plt.close(f)
-
 
 
 sns.set_style("darkgrid", {"axes.facecolor": ".9"})
@@ -78,8 +79,8 @@ max_surround, max_surround_idx = [], []
 max_no_surround, max_no_surround_idx = [], []
 plt.suptitle("Trott and Born Fig 3C")
 count = 1
-for c in range(5):
-    for r in range(5):
+for r in range(5):
+    for c in range(5):
         ax = plt.subplot(5, 5, count)
         it_no_surround = no_surround[count - 1]
         ax.plot(ranges, it_no_surround, label="no surround", color="Black", alpha=0.5, marker=".")  # noqa
@@ -95,6 +96,11 @@ for c in range(5):
             plt.xticks([-45, 0, 45, 90, 135])
         else:
             ax.set_xticklabels([""])
-        plt.ylim([-0, 1])
+        if c == 0:
+            plt.yticks([0, 0.1, 0.2, 0.3, 0.4, 0.5])
+        else:
+            ax.set_yticklabels([""])
+
+        plt.ylim([0., 0.5])
 plt.show()
 plt.close(f)

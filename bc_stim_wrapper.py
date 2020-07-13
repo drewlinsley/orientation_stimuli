@@ -33,6 +33,8 @@ args.r1_range = [150, 151]  # [100, 120]
 # args.r1_range = [80, 81]  # [100, 120]
 # args.lambda_range = [30, 31]  # [30, 90]
 args.lambda_range = [60, 61]  # [30, 90]
+# args.lambda_range = [45, 46]  # [30, 90]
+
 # args.theta1_range = [22.5, 67.5]  # H/TD
 # args.theta2_range = [22.5, 67.5]  # H/TD
 # args.theta1_range = [-90, -89]  # H/TD

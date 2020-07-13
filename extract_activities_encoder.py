@@ -21,7 +21,7 @@ MASTER_MODEL_NAME = "linear_model.joblib"
 MASTER_PREPROC_NAME = "preproc.joblib"
 
 
-def main(basis_function="cos", model_type="linear", debug=False, decompose=False, normalize=False, cross_validate=False):
+def main(basis_function="cos", model_type="gauss", debug=True, decompose=False, normalize=False, cross_validate=False):
     import matplotlib.pyplot as plt
 
     file_name = sys.argv[1]
@@ -58,13 +58,13 @@ def main(basis_function="cos", model_type="linear", debug=False, decompose=False
     responses = []
     images = []
     for d in out_data_arr:
-        # responses.append(d['prepre_ephys'].squeeze(0))
+        responses.append(d['prepre_ephys'].squeeze(0))
         # responses.append(d['pre_ephys'].squeeze(0))
         if save_images:
             images.append(d['images'].squeeze())
         # responses.append(d['logits'].squeeze(0))
         # plt.imshow(d['images'].squeeze()[..., 0], cmap='Greys_r');plt.show()
-        responses.append(d['ephys'].squeeze(0))
+        # responses.append(d['ephys'].squeeze(0))
         # responses.append(d['pool_act_5max'].squeeze())
         # responses.append(d['pool_act_10max'].squeeze())
         # responses.append(d['pool_act_5mean'].squeeze())
@@ -148,7 +148,7 @@ def main(basis_function="cos", model_type="linear", debug=False, decompose=False
         elif basis_function == "gauss":
             indicator_matrix = np.zeros((180, 180))
             prefOrientation = np.arange(0, 180, 180)
-            gaussian = stats.norm(loc=90, scale=45).pdf(np.arange(180))  # noqa
+            gaussian = stats.norm(loc=90, scale=5).pdf(np.arange(180))  # noqa
             for i in range(180):
                 indicator_matrix[:, i] = np.roll(gaussian, i - 90)
             indicator_matrix_plot = indicator_matrix
@@ -195,7 +195,7 @@ def main(basis_function="cos", model_type="linear", debug=False, decompose=False
         indicator_matrix_plot = indicator_matrix
 
         if decompose:
-            preproc = decomposition.NMF(n_components=60, random_state=0, verbose=False, alpha=0.5, max_iter=10000)
+            preproc = decomposition.NMF(n_components=10, random_state=0, verbose=False, alpha=0.5, max_iter=10000)
             # preproc = decomposition.FastICA(n_components=8, random_state=0, whiten=True, max_iter=10000)
             # preproc = decomposition.PCA(n_components=128, random_state=0, whiten=False)
             original_responses = np.copy(responses)
@@ -252,7 +252,8 @@ def main(basis_function="cos", model_type="linear", debug=False, decompose=False
             clf = np.argmax(responses, 1)
         else:
             # clf = model.fit(indicator_matrix, responses)  # noqa Encoder models like serences
-            clf = model.fit(responses, indicator_matrix)  #
+            clf = np.matmul(np.linalg.pinv(indicator_matrix), responses)
+            # clf = model.fit(responses, indicator_matrix)  #
         dump(clf, MASTER_MODEL_NAME)
         np.savez(output_name, idx=idx, means=means, stds=stds)
 
@@ -260,14 +261,14 @@ def main(basis_function="cos", model_type="linear", debug=False, decompose=False
         if debug:
             f = plt.figure()
             plt.subplot(131)
-            plt.title('Y')
-            plt.imshow(indicator_matrix_plot)
-            plt.subplot(132)
             plt.title('X')
-            plt.imshow(responses)
+            plt.imshow(indicator_matrix_plot)
             plt.subplot(133)
+            plt.title('Y')
+            plt.imshow(responses)
+            plt.subplot(132)
             plt.title('Parameters')
-            plt.imshow(clf.coef_.T)
+            plt.imshow(clf)
             plt.show()
             plt.close(f)
 
@@ -295,13 +296,22 @@ def main(basis_function="cos", model_type="linear", debug=False, decompose=False
             # "electrophys"
             responses = responses[clf]
         else:
+            params = safe_sparse_dot(
+                clf,
+                clf.T,
+                dense_output=True)
+            inv_params = np.linalg.pinv(params)
             responses = safe_sparse_dot(
                 responses,
-                clf.coef_.T,
-                dense_output=True) + clf.intercept_
+                clf.T,
+                dense_output=True)  # + clf.intercept_
+            predictions = safe_sparse_dot(
+                responses,
+                inv_params,
+                dense_output=True)
         # responses = stds * (responses + means)
         # assert (responses < 0).sum() == 0
-        np.save(output_name, responses)
+        np.save(output_name, predictions)
     else:
         raise NotImplementedError(analysis)
     print("Finished {}".format(file_name))
