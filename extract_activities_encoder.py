@@ -21,7 +21,7 @@ MASTER_MODEL_NAME = "linear_model.joblib"
 MASTER_PREPROC_NAME = "preproc.joblib"
 
 
-def main(basis_function="cos", model_type="gauss", debug=True, decompose=False, normalize=False, cross_validate=False):
+def main(basis_function="exp", model_type="linear", debug=True, decompose=True, normalize=False, cross_validate=False):
     import matplotlib.pyplot as plt
 
     file_name = sys.argv[1]
@@ -58,8 +58,8 @@ def main(basis_function="cos", model_type="gauss", debug=True, decompose=False, 
     responses = []
     images = []
     for d in out_data_arr:
-        responses.append(d['prepre_ephys'].squeeze(0))
-        # responses.append(d['pre_ephys'].squeeze(0))
+        # responses.append(d['prepre_ephys'].squeeze(0))
+        responses.append(d['pre_ephys'].squeeze(0))
         if save_images:
             images.append(d['images'].squeeze())
         # responses.append(d['logits'].squeeze(0))
@@ -83,7 +83,7 @@ def main(basis_function="cos", model_type="gauss", debug=True, decompose=False, 
     responses = np.asarray(responses)
     if np.any(responses < 0):
         print("Rectifying responses.")
-    responses = np.maximum(np.asarray(responses), 0.)
+        responses = np.maximum(np.asarray(responses), 0.)
 
     # # Align meta with the activities (slow)
     # aligner = []
@@ -133,7 +133,7 @@ def main(basis_function="cos", model_type="gauss", debug=True, decompose=False, 
                 indicator_matrix, bin_degrees // 2, axis=0)
             # indicator_matrix_plot = indicator_matrix
         elif basis_function == "cos":
-            nChannels = num_bins
+            nChannels = 180
             exponent = 1
             orientations = np.arange(180)
             prefOrientation = np.arange(0, 180, 180 / nChannels)
@@ -145,12 +145,29 @@ def main(basis_function="cos", model_type="gauss", debug=True, decompose=False, 
                 basis = basis ** exponent
                 indicator_matrix[:, iChannel] = basis
             indicator_matrix_plot = indicator_matrix
+        elif basis_function == "exp":
+            nChannels = 180
+            exponent = 30
+            orientations = np.arange(180)
+            prefOrientation = np.arange(0, 180, 180/nChannels)
+            basis_vectors = np.zeros((180,nChannels))
+            for iChannel in range(nChannels):
+                basis = np.cos(2*np.pi*(orientations - prefOrientation[iChannel])/180)
+                basis[basis<0] = 0
+                basis = basis ** exponent
+                basis_vectors[:,iChannel] = basis
+            indicator_matrix = basis_vectors
+            indicator_matrix_plot = indicator_matrix
         elif basis_function == "gauss":
             indicator_matrix = np.zeros((180, 180))
             prefOrientation = np.arange(0, 180, 180)
-            gaussian = stats.norm(loc=90, scale=5).pdf(np.arange(180))  # noqa
+            gaussian = stats.norm(loc=90, scale=90).pdf(np.arange(180))  # noqa
             for i in range(180):
                 indicator_matrix[:, i] = np.roll(gaussian, i - 90)
+            indicator_matrix -= indicator_matrix.min()
+            indicator_matrix /= indicator_matrix.max()
+            indicator_matrix -= 0.5
+            indicator_matrix *= 2
             indicator_matrix_plot = indicator_matrix
         else:
             raise NotImplementedError(basis_function)
@@ -173,31 +190,23 @@ def main(basis_function="cos", model_type="gauss", debug=True, decompose=False, 
 
         # Remove 180 degrees
         meta_col = meta_arr[:, 4].astype(int)
-        if meta_col.max() <= 90:
+        if meta_col.min() == -90:
             meta_col = meta_col + 90
         else:
             pass
-            # meta_col = meta_col - 90
-        # meta_col[meta_col == 179] = 0
-        print("max-meta: {}, min-meta: {}".format(meta_col.max(), meta_col.min()))
-
         meta_col = meta_col % 180
-        print(meta_col.max(), meta_col.min())
-        # meta_col[meta_col == 180] = 0
-        # meta_col[meta_col == 181] = 1
-        # indicator_matrix = indicator_matrix[:, :-1]
+        print("max-meta: {}, min-meta: {}".format(meta_col.max(), meta_col.min()))
         indicator_matrix = indicator_matrix[meta_col]
 
         # Make the target nonnegative
-        # indicator_matrix = np.maximum(indicator_matrix, 0)
-        indicator_matrix = indicator_matrix - indicator_matrix.min()
-        indicator_matrix = indicator_matrix / indicator_matrix.max()
+        # indicator_matrix = indicator_matrix - indicator_matrix.mean()
+        # indicator_matrix = indicator_matrix / indicator_matrix.std()
         indicator_matrix_plot = indicator_matrix
 
         if decompose:
-            preproc = decomposition.NMF(n_components=10, random_state=0, verbose=False, alpha=0.5, max_iter=10000)
-            # preproc = decomposition.FastICA(n_components=8, random_state=0, whiten=True, max_iter=10000)
-            # preproc = decomposition.PCA(n_components=128, random_state=0, whiten=False)
+            # preproc = decomposition.NMF(n_components=32, random_state=0, verbose=False, alpha=0., max_iter=10000)
+            preproc = decomposition.FastICA(n_components=60, random_state=0, whiten=True, max_iter=10000)
+            # preproc = decomposition.PCA(n_components=6, random_state=0, whiten=True)
             original_responses = np.copy(responses)
             preproc.fit(responses)
             responses = preproc.transform(responses)
@@ -207,8 +216,11 @@ def main(basis_function="cos", model_type="gauss", debug=True, decompose=False, 
         stds = responses.std() + 1e-12
         if normalize:
             responses = (responses - means) / stds
-            # responses = (responses - means)  #  / stds
+            responses -= means
+            responses /= stds
         # indicator_matrix = (indicator_matrix - indicator_matrix.mean(0))
+        # indicator_matrix -= indicator_matrix.min(0)
+        # indicator_matrix /= indicator_matrix.max(0)
         # indicator_matrix = (indicator_matrix - indicator_matrix.mean(0)) / (indicator_matrix.std(0) + 1e-12)
         if "both" in file_name:
             diff = responses.shape[0] - indicator_matrix.shape[0]
@@ -288,7 +300,9 @@ def main(basis_function="cos", model_type="gauss", debug=True, decompose=False, 
             preproc = load(MASTER_PREPROC_NAME)
             responses = preproc.transform(responses)
         if normalize:
-            responses = (responses - means) / stds
+            # responses = (responses - means) / stds
+            responses -= means
+            responses /= stds
             # responses = (responses - means)  # / stds
         if model_type == "pls":
             responses = clf.predict(responses)
