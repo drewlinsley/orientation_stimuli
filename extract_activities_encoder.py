@@ -21,7 +21,7 @@ MASTER_MODEL_NAME = "linear_model.joblib"
 MASTER_PREPROC_NAME = "preproc.joblib"
 
 
-def main(basis_function="exp", model_type="linear", debug=True, decompose=True, normalize=False, cross_validate=False):
+def main(basis_function="cos", model_type="linear", debug=True, decompose=True, normalize=False, cross_validate=False):
     import matplotlib.pyplot as plt
 
     file_name = sys.argv[1]
@@ -58,8 +58,8 @@ def main(basis_function="exp", model_type="linear", debug=True, decompose=True, 
     responses = []
     images = []
     for d in out_data_arr:
-        # responses.append(d['prepre_ephys'].squeeze(0))
-        responses.append(d['pre_ephys'].squeeze(0))
+        responses.append(d['prepre_ephys'].squeeze(0))
+        # responses.append(d['pre_ephys'].squeeze(0))
         if save_images:
             images.append(d['images'].squeeze())
         # responses.append(d['logits'].squeeze(0))
@@ -161,7 +161,7 @@ def main(basis_function="exp", model_type="linear", debug=True, decompose=True, 
         elif basis_function == "gauss":
             indicator_matrix = np.zeros((180, 180))
             prefOrientation = np.arange(0, 180, 180)
-            gaussian = stats.norm(loc=90, scale=90).pdf(np.arange(180))  # noqa
+            gaussian = stats.norm(loc=90, scale=45).pdf(np.arange(180))  # noqa
             for i in range(180):
                 indicator_matrix[:, i] = np.roll(gaussian, i - 90)
             indicator_matrix -= indicator_matrix.min()
@@ -264,7 +264,7 @@ def main(basis_function="exp", model_type="linear", debug=True, decompose=True, 
             clf = np.argmax(responses, 1)
         else:
             # clf = model.fit(indicator_matrix, responses)  # noqa Encoder models like serences
-            clf = np.matmul(np.linalg.pinv(indicator_matrix), responses)
+            clf = np.matmul(np.linalg.pinv(indicator_matrix.T), responses)
             # clf = model.fit(responses, indicator_matrix)  #
         dump(clf, MASTER_MODEL_NAME)
         np.savez(output_name, idx=idx, means=means, stds=stds)
@@ -273,8 +273,8 @@ def main(basis_function="exp", model_type="linear", debug=True, decompose=True, 
         if debug:
             f = plt.figure()
             plt.subplot(131)
-            plt.title('X')
-            plt.imshow(indicator_matrix_plot)
+            plt.title('Idealized (transpose)')
+            plt.imshow(indicator_matrix_plot.T)
             plt.subplot(133)
             plt.title('Y')
             plt.imshow(responses)

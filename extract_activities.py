@@ -21,7 +21,7 @@ MASTER_MODEL_NAME = "linear_model.joblib"
 MASTER_PREPROC_NAME = "preproc.joblib"
 
 
-def main(basis_function="cos", model_type="linear", debug=False, decompose=False, normalize=False, cross_validate=False):
+def main(basis_function="gauss", model_type="linear", debug=False, decompose=True, normalize=False, cross_validate=False):
     import matplotlib.pyplot as plt
 
     file_name = sys.argv[1]
@@ -58,14 +58,14 @@ def main(basis_function="cos", model_type="linear", debug=False, decompose=False
     responses = []
     images = []
     for d in out_data_arr:
-        # responses.append(d['prepre_ephys'].squeeze(0))
-        # responses.append(d['pre_ephys'].squeeze(0))
+        # responses.append(d['prepre_ephys'].squeeze(0))  # First out of GN
+        responses.append(d['pre_ephys'].squeeze(0))  # Post IN
         if save_images:
             images.append(d['images'].squeeze())
-        # responses.append(d['logits'].squeeze(0))
         # plt.imshow(d['images'].squeeze()[..., 0], cmap='Greys_r');plt.show()
-        responses.append(d['ephys'].squeeze(0))
-        # responses.append(d['pool_act_5max'].squeeze())
+        # responses.append(d['ephys'].squeeze(0))  # Pre cos/sin 1x1 conv
+        # responses.append(d['logits'].squeeze(0))  # cos/sin readout for orientation
+        # responses.append(d['pool_act_5max'].squeeze())  # 50x50 neighborhood around the center column
         # responses.append(d['pool_act_10max'].squeeze())
         # responses.append(d['pool_act_5mean'].squeeze())
         # responses.append(d['pool_act_10mean'].squeeze())
@@ -148,7 +148,7 @@ def main(basis_function="cos", model_type="linear", debug=False, decompose=False
         elif basis_function == "gauss":
             indicator_matrix = np.zeros((180, 180))
             prefOrientation = np.arange(0, 180, 180)
-            gaussian = stats.norm(loc=90, scale=45).pdf(np.arange(180))  # noqa
+            gaussian = stats.norm(loc=90, scale=90).pdf(np.arange(180))  # noqa
             for i in range(180):
                 indicator_matrix[:, i] = np.roll(gaussian, i - 90)
             indicator_matrix_plot = indicator_matrix
@@ -195,8 +195,8 @@ def main(basis_function="cos", model_type="linear", debug=False, decompose=False
         indicator_matrix_plot = indicator_matrix
 
         if decompose:
-            preproc = decomposition.NMF(n_components=60, random_state=0, verbose=False, alpha=0.5, max_iter=10000)
-            # preproc = decomposition.FastICA(n_components=8, random_state=0, whiten=True, max_iter=10000)
+            # preproc = decomposition.NMF(n_components=60, random_state=0, verbose=False, alpha=0.5, max_iter=10000)
+            preproc = decomposition.FastICA(n_components=8, random_state=0, whiten=True, max_iter=10000)
             # preproc = decomposition.PCA(n_components=128, random_state=0, whiten=False)
             original_responses = np.copy(responses)
             preproc.fit(responses)
