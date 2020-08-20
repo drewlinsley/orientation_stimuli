@@ -11,14 +11,21 @@ surround = np.load('orientation_probe_outputs_data.npy')
 surround_images = 'orientation_probe/test/imgs/1'
 
 stride = np.floor(180 / no_surround.shape[-1]).astype(int)
-# thetas = {0: -90, 30//5: -60, 60//5: -30, 90//5: 0, 120//5: 30, 150//5: 60}
+# thetas = {
+#     0 // stride: -90,
+#     30 // stride: -60,
+#     60 // stride: -30,
+#     90 // stride: 0,
+#     120 // stride: 30,
+#     150 // stride: 60
+# }
 thetas = {
-    0 // stride: -90,
-    30 // stride: -60,
-    60 // stride: -30,
-    90 // stride: 0,
-    120 // stride: 30,
-    150 // stride: 60
+    0: -90,
+    30: -60,
+    60: -30,
+    90: 0,
+    120: 30,
+    150: 60
 }
 
 ranges = np.arange(-90, 90, stride)

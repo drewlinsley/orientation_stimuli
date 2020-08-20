@@ -30,21 +30,34 @@ else:
 args.image_size = [500, 500]
 args.r1_range = [110, 111]  # [100, 120]
 args.r1_range = [150, 151]  # [100, 120]
+args.r1_range = [119, 120]  # [100, 120]
+# args.r1_range = [150, 151]  # [100, 120]
+
+
+
 # args.r1_range = [80, 81]  # [100, 120]
 # args.lambda_range = [30, 31]  # [30, 90]
+# args.lambda_range = [30, 31]  # [30, 90]
+# args.lambda_range = [40, 41]  # [30, 90]
+args.lambda_range = [44, 45]  # [30, 90]
+args.lambda_range = [40, 41]  # [30, 90]
 args.lambda_range = [60, 61]  # [30, 90]
-# args.lambda_range = [45, 46]  # [30, 90]
+
+
+# ALIGNED WITH TB2015
+args.r1_range = [31 * 3, (31 * 3) + 1]  # [100, 120]
+args.lambda_range = [15, 16]  # [30, 90]
 
 # args.theta1_range = [22.5, 67.5]  # H/TD
 # args.theta2_range = [22.5, 67.5]  # H/TD
 # args.theta1_range = [-90, -89]  # H/TD
 # args.theta2_range = [-90, -89]  # H/TD
-args.theta1_range = [-45, -44]  # H/TD
-args.theta2_range = [-45, -44]  # H/TD
+args.theta1_range = [179, 180]  # H/TD
+args.theta2_range = [179, 180]  # H/TD
 control_stim = False
 
 args.contrast_range = [0., 0.06, 0.12, 0.25, 0.5]
-dual_centers = [45]
+dual_centers = [90]
 surround, train = True, True
 if dataset_root == "contrast_modulated_no_surround":
     surround = False

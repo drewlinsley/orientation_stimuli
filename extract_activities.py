@@ -9,6 +9,7 @@ from sklearn import decomposition, metrics
 from tqdm import tqdm
 from joblib import dump, load
 from scipy import stats
+from matplotlib import pyplot as plt
 # import scipy as sp
 # from scipy import stats
 # DEFAULT_FDOMAIN = (0., 1.)#(-sp.pi, sp.pi)
@@ -19,11 +20,18 @@ DEFAULT_FDOMAIN = 0
 DEFAULT_SCALE_CIRCULAR = 0
 MASTER_MODEL_NAME = "linear_model.joblib"
 MASTER_PREPROC_NAME = "preproc.joblib"
+NULL_NPZ = "contrast_modulated_no_surround_outputs"  # noqa TODO: Use argparse and move to an arg
 
 
-def main(basis_function="gauss", model_type="linear", debug=False, decompose=True, normalize=False, cross_validate=False):
-    import matplotlib.pyplot as plt
-
+def main(
+        basis_function="cos",
+        model_type="pls",
+        debug=True,
+        decompose=False,
+        normalize=False,
+        feature_select=1.,
+        cross_validate=False):
+    """Add a docstring please."""
     file_name = sys.argv[1]
     meta_dim = int(sys.argv[2])
     analysis = sys.argv[3]
@@ -43,10 +51,6 @@ def main(basis_function="gauss", model_type="linear", debug=False, decompose=Tru
     meta_arr = np.reshape(
         np.load(meta, allow_pickle=True, encoding='latin1'), [-1, meta_dim])
 
-    # thetas = meta_arr[:, 4].astype(np.float32)
-    # plaids = meta_arr[:, -1].astype(np.float32)
-    # unique_thetas = np.unique(thetas)
-
     image_paths = np.asarray(
         [str(x['image_paths'][0]).split(os.path.sep)[-1].strip("'") for x in out_data_arr])  # noqa
     target_image_paths = meta_arr[:len(image_paths), 1]
@@ -57,23 +61,19 @@ def main(basis_function="gauss", model_type="linear", debug=False, decompose=Tru
 
     responses = []
     images = []
-    for d in out_data_arr:
-        # responses.append(d['prepre_ephys'].squeeze(0))  # First out of GN
-        responses.append(d['pre_ephys'].squeeze(0))  # Post IN
-        if save_images:
-            images.append(d['images'].squeeze())
-        # plt.imshow(d['images'].squeeze()[..., 0], cmap='Greys_r');plt.show()
-        # responses.append(d['ephys'].squeeze(0))  # Pre cos/sin 1x1 conv
-        # responses.append(d['logits'].squeeze(0))  # cos/sin readout for orientation
-        # responses.append(d['pool_act_5max'].squeeze())  # 50x50 neighborhood around the center column
-        # responses.append(d['pool_act_10max'].squeeze())
-        # responses.append(d['pool_act_5mean'].squeeze())
-        # responses.append(d['pool_act_10mean'].squeeze())
+    # extract_key = "pool_act_5max"  # or f*
+    # extract_key = "pool_act_10max"  # or f*
+    # extract_key = "pool_act_5mean"  # or f*
+    # extract_key = "pool_act_10mean"  # or f*
 
-        # responses.append(d['fpool_act_5max'].squeeze())
-        # responses.append(d['fpool_act_10max'].squeeze())
-        # responses.append(d['fpool_act_5mean'].squeeze())
-        # responses.append(d['fpool_act_10mean'].squeeze())
+    extract_key = "prepre_ephys"  # First out of GN
+    # extract_key = "pre_ephys"  # Post IN
+    # extract_key = "ephys"  # Pre cos/sin 1x1 conv
+    # extract_key = "logits"  # cos/sin readout for orientation
+    for d in out_data_arr:
+        if save_images:
+            images.append(d["images"].squeeze())
+        responses.append(d[extract_key].reshape(1, -1, 128).mean(1).squeeze(0))  # Pre cos/sin 1x1 conv
 
     if save_images:
         output_image_name = "images_{}".format(output_name)
@@ -85,42 +85,16 @@ def main(basis_function="gauss", model_type="linear", debug=False, decompose=Tru
         print("Rectifying responses.")
     responses = np.maximum(np.asarray(responses), 0.)
 
-    # # Align meta with the activities (slow)
-    # aligner = []
-    # for meta_row in meta_arr:
-    #     for i, p in enumerate(image_paths):
-    #         if meta_row[1] == p:
-    #             aligner.append(i)
-    #             break
-    # aligner = np.asarray(aligner)
-    # import ipdb;ipdb.set_trace()
-    # responses = responses[aligner]
-
     if analysis == "feature_select":
-        cutoff = (responses.mean(0) / (responses.std(0) + 1e-8))
-        idx = np.argsort(cutoff)[::-1][:int(responses.shape[1] * (1.))]
-        # cutoff = np.abs(responses.mean(0))
-        # idx = np.argsort(cutoff)[::-1][:int(responses.shape[1] * (1. / 3.))]
+        # Feature selection
+        # cutoff = (responses.mean(0) / (responses.std(0) + 1e-8))
+        # idx = np.argsort(cutoff)[::-1][:int(responses.shape[1] * (feature_select))]  # noqa
+        # print("Keeping {} features".format(len(idx)))
+        # responses = responses[:, idx]
 
-        # idx = np.argsort(cutoff)[::-1][:int(responses.shape[1] * 0.33)]
-        # idx = np.where(np.abs(cutoff) > 2)[0]
-        print("Keeping {} features".format(len(idx)))
-        responses = responses[:, idx]
-        # np.savez(output_name, idx=idx, responses=responses)
-
-        # # Train a linear model to get preferred orientation partitions
-
-        # First get image orientations
-        # thetas = np.unique(np.asarray(
-        #     [
-        #         float(x.split("_")[-1].split(".")[0])
-        #         for x in image_paths]))
+        # Create idealized responses
         meta_arr = meta_arr[:len(responses)]
-        # meta_arr = meta_arr[:500]
-        # responses = responses[:500]
         thetas = np.unique(meta_arr[:, 4])
-
-        # Second quantize those into 10 degree bins
         bin_degrees = 1
         num_bins = int(len(thetas) / bin_degrees)
         bins = pd.qcut(thetas, num_bins, labels=False)
@@ -133,34 +107,47 @@ def main(basis_function="gauss", model_type="linear", debug=False, decompose=Tru
                 indicator_matrix, bin_degrees // 2, axis=0)
             # indicator_matrix_plot = indicator_matrix
         elif basis_function == "cos":
-            nChannels = num_bins
-            exponent = 1
+            # nChannels = num_bins
+            # exponent = 1
+            # orientations = np.arange(180)
+            # prefOrientation = np.arange(0, 180, 180 / nChannels)
+            # indicator_matrix = np.zeros((180, nChannels))
+            # for iChannel in range(nChannels):
+            #     basis = np.cos(2 * np.pi * (
+            #         orientations - prefOrientation[iChannel]) / 180)
+            #     # basis[basis < 0] = 0
+            #     basis = basis ** exponent
+            #     indicator_matrix[:, iChannel] = basis
+
+            nChannels = 12
+            exponent = nChannels - 1
             orientations = np.arange(180)
             prefOrientation = np.arange(0, 180, 180 / nChannels)
+            # prefOrientation = np.array([15, 45, 75, 105, 135, 165])
             indicator_matrix = np.zeros((180, nChannels))
-            for iChannel in range(nChannels):
-                basis = np.cos(2 * np.pi * (
-                    orientations - prefOrientation[iChannel]) / 180)
-                # basis[basis < 0] = 0
+            for iChannel, mu in enumerate(prefOrientation):
+                basis = np.cos(np.pi * (orientations - mu) / 180)
+                basis[basis < 0] = 0
                 basis = basis ** exponent
                 indicator_matrix[:, iChannel] = basis
             indicator_matrix_plot = indicator_matrix
         elif basis_function == "gauss":
             indicator_matrix = np.zeros((180, 180))
             prefOrientation = np.arange(0, 180, 180)
-            gaussian = stats.norm(loc=90, scale=90).pdf(np.arange(180))  # noqa
+            gaussian = stats.norm(loc=90, scale=30).pdf(np.arange(180))  # noqa
             for i in range(180):
                 indicator_matrix[:, i] = np.roll(gaussian, i - 90)
             indicator_matrix_plot = indicator_matrix
         else:
             raise NotImplementedError(basis_function)
+
         if model_type == "logistic":
             model = linear_model.LogisticRegression(random_state=0, multi_class='ovr', max_iter=1000)
         elif model_type == "linear":
-            model = linear_model.LinearRegression(fit_intercept=True, normalize=False)
+            model = linear_model.LinearRegression(fit_intercept=False, normalize=False)
         elif model_type == "lasso":
-            # model = linear_model.MultiTaskLassoCV(cv=2, normalize=True, n_jobs=2, fit_intercept=True, verbose=True, max_iter=100000, random_state=0)
-            model = linear_model.Lasso(positive=True, alpha=0.0001, fit_intercept=False, max_iter=1000000, random_state=0)
+            # model = linear_model.MultiTaskLassoCV(cv=5, normalize=True, n_jobs=3, fit_intercept=True, verbose=True, max_iter=100000, random_state=0)
+            model = linear_model.Lasso(positive=True, alpha=0.001, fit_intercept=False, max_iter=1000000, random_state=0)
             # model = linear_model.MultiTaskLasso(alpha=0.1, fit_intercept=False, max_iter=100000, random_state=0)
         elif model_type == "ridge":
             model = linear_model.Ridge(normalize=False, alpha=0.10, fit_intercept=False)
@@ -179,7 +166,7 @@ def main(basis_function="gauss", model_type="linear", debug=False, decompose=Tru
             pass
             # meta_col = meta_col - 90
         # meta_col[meta_col == 179] = 0
-        print("max-meta: {}, min-meta: {}".format(meta_col.max(), meta_col.min()))
+        print("max-meta: {}, min-meta: {}".format(meta_col.max(), meta_col.min()))  # noqa
 
         meta_col = meta_col % 180
         print(meta_col.max(), meta_col.min())
@@ -188,25 +175,64 @@ def main(basis_function="gauss", model_type="linear", debug=False, decompose=Tru
         # indicator_matrix = indicator_matrix[:, :-1]
         indicator_matrix = indicator_matrix[meta_col]
 
-        # Make the target nonnegative
-        # indicator_matrix = np.maximum(indicator_matrix, 0)
+        # Normalize the target nonnegative
         indicator_matrix = indicator_matrix - indicator_matrix.min()
         indicator_matrix = indicator_matrix / indicator_matrix.max()
+        # indicator_matrix = indicator_matrix - indicator_matrix.mean()
+        # indicator_matrix = indicator_matrix / indicator_matrix.std()
         indicator_matrix_plot = indicator_matrix
+
+        # Stack the null response to the top
+        null_npzs = glob(os.path.join(NULL_NPZ, "*.npz"))
+        null_npzs.sort(key=os.path.getmtime)
+        null_npz = null_npzs[-1]
+        null_meta = np.load(os.path.join(NULL_NPZ, "1.npy"), allow_pickle=True, encoding="latin1")  # noqa
+        null_meta_proc = null_meta.reshape(-1, 14)[:, -2:].astype(float)
+        null_meta_idx = np.where(null_meta_proc.sum(-1) == null_meta_proc.max(-1))[0]  # noqa
+        null_response = np.load(null_npz, allow_pickle=True, encoding="latin1")
+        null_response = null_response["test_dict"]
+        null_responses = []
+        for nidx in null_meta_idx:
+            null_responses.append(null_response[nidx][extract_key])  # noqa Vector response to 0 contrast
+        null_responses = np.asarray(null_responses).squeeze(1)
+        null_thetas = np.zeros(len(null_meta_proc), dtype=int)
+        for nidx in range(len(null_meta_proc)):
+            if null_meta_proc[nidx][1] < null_meta_proc[nidx][0]:
+                null_thetas[nidx] = 90
+        null_indicators = []
+        for ntheta, nmod in zip(null_thetas, null_meta_proc[null_meta_idx]):
+            null_indicators.append(indicator_matrix[ntheta] * nmod.max(-1))
+        null_indicators = np.asarray(null_indicators)
+
+        # responses = np.concatenate((null_responses, responses), 0)
+        # indicator_matrix = np.concatenate((null_indicators, indicator_matrix), 0)  # noqa
+        # indicator_matrix_plot = indicator_matrix
+
+        # responses = np.concatenate((null_response[0][extract_key], responses), 0)  # noqa
+        # indicator_matrix = np.concatenate((np.zeros((1, len(indicator_matrix))), indicator_matrix), 0)  # noqa
+        # indicator_matrix_plot = np.concatenate((np.zeros((1, len(indicator_matrix_plot))), indicator_matrix_plot), 0)  # noqa
+
+        # responses = responses - null_response
+
+        # if np.any(responses < 0):
+        #     print("Rectifying responses.")
+        #     responses = np.maximum(np.asarray(responses), 0.)
+        means = responses.mean(0)
+        stds = responses.std(0) + 1e-12
+        # means = responses.min()
+        # stds = responses.max()
+        if normalize:
+            responses = (responses - means) / stds
 
         if decompose:
             # preproc = decomposition.NMF(n_components=60, random_state=0, verbose=False, alpha=0.5, max_iter=10000)
-            preproc = decomposition.FastICA(n_components=8, random_state=0, whiten=True, max_iter=10000)
-            # preproc = decomposition.PCA(n_components=128, random_state=0, whiten=False)
+            # preproc = decomposition.FastICA(n_components=64, random_state=0, whiten=True, max_iter=10000)
+            preproc = decomposition.PCA(n_components=45, random_state=0, whiten=False)
             original_responses = np.copy(responses)
             preproc.fit(responses)
             responses = preproc.transform(responses)
             dump(preproc, MASTER_PREPROC_NAME)
 
-        means = responses.mean()
-        stds = responses.std() + 1e-12
-        if normalize:
-            responses = (responses - means) / stds
             # responses = (responses - means)  #  / stds
         # indicator_matrix = (indicator_matrix - indicator_matrix.mean(0))
         # indicator_matrix = (indicator_matrix - indicator_matrix.mean(0)) / (indicator_matrix.std(0) + 1e-12)
@@ -251,10 +277,9 @@ def main(basis_function="gauss", model_type="linear", debug=False, decompose=Tru
             # Selected argmax
             clf = np.argmax(responses, 1)
         else:
-            # clf = model.fit(indicator_matrix, responses)  # noqa Encoder models like serences
             clf = model.fit(responses, indicator_matrix)  #
         dump(clf, MASTER_MODEL_NAME)
-        np.savez(output_name, idx=idx, means=means, stds=stds)
+        np.savez(output_name, means=means, stds=stds)
 
         # Third, plot Y and X to share with lax
         if debug:
@@ -273,22 +298,33 @@ def main(basis_function="gauss", model_type="linear", debug=False, decompose=Tru
 
     elif analysis == "activity":
         moments = np.load(feature_idx)
-        idx = moments['idx']
+        # idx = moments['idx']
         # optimal_orientation = np.argmax(
         #     filters['responses'].sum(-1) / filters['responses'].std(-1))
         # responses = responses[optimal_orientation:, idx]
         means = moments['means']
         stds = moments['stds']
-        responses = responses[:, idx]
+        # responses = responses[:, idx]
         # responses = np.maximum(responses, 0) / responses.max()
         # assert (responses < 0).sum() == 0
+
+        null_npzs = glob(os.path.join(NULL_NPZ, "*.npz"))
+        null_npzs.sort(key=os.path.getmtime)
+        null_npz = null_npzs[-1]
+        null_response = np.load(null_npz, allow_pickle=True, encoding="latin1")
+        null_response = null_response["test_dict"]
+        null_response = null_response[0][extract_key]  # noqa Vector response to 0 contrast
+        # if "orientation_probe_no_surround_outputs" in output_name or "orientation_probe_outputs" in output_name:  # noqa
+        #     responses = np.concatenate((null_response, responses))
+
         clf = load(MASTER_MODEL_NAME)
-        if decompose:
-            preproc = load(MASTER_PREPROC_NAME)
-            responses = preproc.transform(responses)
         if normalize:
             responses = (responses - means) / stds
             # responses = (responses - means)  # / stds
+
+        if decompose:
+            preproc = load(MASTER_PREPROC_NAME)
+            responses = preproc.transform(responses)
         if model_type == "pls":
             responses = clf.predict(responses)
         elif model_type == "argmax":

@@ -140,7 +140,7 @@ def from_wrapper(args, train=True, dual_centers=[90], control_stim=False, surrou
                 r1, theta1, lmda, shift1,
                 r2=r2, theta2=theta2, lambda2=lmda, shift2=shift2, dual_center=dual_center, surround=surround, contrast1=contrast1, contrast2=contrast2)
             if (args.save_images):
-                imageio.imwrite(os.path.join(args.dataset_path, im_sub_path, im_fn), img.astype(np.uint8))
+                imageio.imwrite(os.path.join(args.dataset_path, im_sub_path, im_fn), img)
             if (args.save_metadata):
                 metadata = accumulate_meta(
                     metadata,

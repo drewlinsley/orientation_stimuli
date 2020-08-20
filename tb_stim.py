@@ -33,7 +33,7 @@ def create_sinusoid(imsize, theta, lmda, shift, amplitude=1.):
 
 def create_image(imsize,
                  r1, theta1, lambda1, shift1,
-                 r2=None, theta2=None, lambda2=None, shift2=None, dual_center=False, surround=True):
+                 r2=None, theta2=None, lambda2=None, shift2=None, dual_center=False, surround=True, surround_control=False):
     mask1 = create_annuli_mask(r1, imsize)
     sin1 = create_sinusoid(imsize, theta1, lambda1, shift1)
     if dual_center and shift2 is not None:
@@ -55,6 +55,12 @@ def create_image(imsize,
     else:
         image = np.zeros((imsize[0], imsize[1]))
     image = image*(1-mask1) + sin1*(mask1)
+    if r2 is not None:
+        # Middle_mask
+        middle_mask = create_annuli_mask(r1 * 1.5, imsize)
+        if not surround_control:
+            middle_mask = middle_mask - mask1
+        image[middle_mask > 0] = 0
     return image
 
 def accumulate_meta(array,
@@ -77,7 +83,7 @@ def save_metadata(metadata, contour_path, batch_id):
     with open(os.path.join(metadata_path, metadata_fn), "wb") as f:
         pickle.dump(metadata, f, protocol=2)
 
-def from_wrapper(args, train=True, dual_centers=[90], control_stim=False, surround=True):  # -90, -60, -30, 0, 60]):
+def from_wrapper(args, train=True, dual_centers=[90], control_stim=False, surround=True, include_null=False, surround_control=False):  # -90, -60, -30, 0, 60]):
     import time
     import scipy
 
@@ -118,7 +124,8 @@ def from_wrapper(args, train=True, dual_centers=[90], control_stim=False, surrou
             theta2=None
             shift2=None
         else:
-            r2 = r1 * 2
+            r2 = r1 * 4
+            # r2 = r1 * 2
         theta2 = theta1
         shift2 = shift1
         for dual_center in dual_centers:
@@ -129,7 +136,7 @@ def from_wrapper(args, train=True, dual_centers=[90], control_stim=False, surrou
             img = create_image(
                 args.image_size,
                 r1, theta1, lmda, shift1,
-                r2=r2, theta2=theta2, lambda2=lmda, shift2=shift2, dual_center=dual_center, surround=surround)
+                r2=r2, theta2=theta2, lambda2=lmda, shift2=shift2, dual_center=dual_center, surround=surround, surround_control=surround_control)
 
             if (args.save_images):
                 imageio.imwrite(os.path.join(args.dataset_path, im_sub_path, im_fn), img)
