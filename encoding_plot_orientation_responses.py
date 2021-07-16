@@ -6,15 +6,21 @@ from skimage import io
 import sys
 
 
-if len(sys.argv) == 2:
+if len(sys.argv) > 2:
     file_name = sys.argv[1]
 else:
     file_name = None
-no_surround = np.load('orientation_probe_no_surround_outputs_data.npy')
+if len(sys.argv) > 3:
+    no_surround = np.load(sys.argv[2])
+    surround = np.load(sys.argv[3])
+    surround_control = np.load(sys.argv[4])
+else:
+    no_surround = np.load('orientation_probe_no_surround_outputs_data.npy')
+    surround_control = np.load('surround_control_outputs_data.npy')
+    surround = np.load('orientation_probe_outputs_data.npy')
+
 no_surround_images = 'orientation_probe_no_surround/test/imgs/1'
-surround = np.load('orientation_probe_outputs_data.npy')
 surround_images = 'orientation_probe/test/imgs/1'
-surround_control = np.load('surround_control_outputs_data.npy')
 surround_control_images = 'surround_control/test/imgs/1'
 output_dir = "results_orientation_tuning"
 os.makedirs(output_dir, exist_ok=True)
@@ -37,7 +43,7 @@ thetas = {  # 0 theta is response to a blank scene
     151: 60
 }
 
-ranges = np.arange(-90, 90, stride)[:no_surround.shape[0]]
+ranges = np.arange(-90, 120, stride)  # [:no_surround.shape[0]]
 # ranges = ranges[:no_surround.shape[1]]
 sns.set_style("darkgrid", {"axes.facecolor": ".9"})
 
@@ -49,11 +55,12 @@ for idx, (theta, label) in enumerate(thetas.items()):
     ax = plt.subplot(2, len(thetas), idx + 1)
 
     it_image = io.imread(os.path.join(no_surround_images, "sample_{}.png".format(theta)))  # noqa
-    plt.imshow(it_image, cmap="Greys_r")
+    plt.imshow(it_image[150:-150], cmap="Greys_r")
     plt.axis("off")
 
     ax = plt.subplot(2, len(thetas), idx + len(thetas) + 1)
     it_no_surround = no_surround[:, theta]
+    it_no_surround = np.concatenate((it_no_surround, [it_no_surround[0]]))  # noqa
     # plt.plot(ranges, it_surround, label="surround", color="Red", alpha=0.5, marker=".")  # noqa
     plt.plot(ranges, it_no_surround, label="no surround", color="Black", alpha=0.5, marker=".")  # noqa
 
@@ -85,11 +92,12 @@ for idx, (theta, label) in enumerate(thetas.items()):
     ax = plt.subplot(2, len(thetas), idx + 1)
 
     it_image = io.imread(os.path.join(surround_images, "sample_{}.png".format(theta)))  # noqa
-    plt.imshow(it_image, cmap="Greys_r")
+    plt.imshow(it_image[150:-150], cmap="Greys_r")
     plt.axis("off")
 
     ax = plt.subplot(2, len(thetas), idx + len(thetas) + 1)
     it_surround = surround[:, theta]
+    it_surround = np.concatenate((it_surround, [it_surround[0]]))  # noqa
     # plt.plot(ranges, it_surround, label="surround", color="Red", alpha=0.5, marker=".")  # noqa
     plt.plot(ranges, it_surround, label="no surround", color="Black", alpha=0.5, marker=".")  # noqa
 
@@ -121,11 +129,12 @@ for idx, (theta, label) in enumerate(thetas.items()):
     ax = plt.subplot(2, len(thetas), idx + 1)
 
     it_image = io.imread(os.path.join(surround_control_images, "sample_{}.png".format(theta)))  # noqa
-    plt.imshow(it_image, cmap="Greys_r")
+    plt.imshow(it_image[150:-150], cmap="Greys_r")
     plt.axis("off")
 
     ax = plt.subplot(2, len(thetas), idx + len(thetas) + 1)
     it_surround = surround_control[:, theta]
+    it_surround = np.concatenate((it_surround, [it_surround[0]]))  # noqa
     # plt.plot(ranges, it_surround, label="surround", color="Red", alpha=0.5, marker=".")  # noqa
     plt.plot(ranges, it_surround, label="no surround", color="Black", alpha=0.5, marker=".")  # noqa
 

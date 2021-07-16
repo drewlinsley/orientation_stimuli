@@ -16,8 +16,8 @@ def pf(theta_deg):
     def R_theta(t_deg, w1, w2, k):
         t_rad = t_deg / 180. * sp.pi
         theta_rad = theta_deg / 180. * sp.pi
-        T0 = stats.vonmises.pdf(t_rad * 2., loc=0.0, scale=1.15, kappa=kappa)
-        Tt = stats.vonmises.pdf(t_rad * 2., loc=theta_rad * 1.15, scale=1.15, kappa=kappa)  # noqa
+        T0 = stats.vonmises.pdf(t_rad * 2., loc=0.0, scale=1., kappa=kappa)
+        Tt = stats.vonmises.pdf(t_rad * 2., loc=theta_rad * 2., scale=1., kappa=kappa)  # noqa
         T0 /= T0.max()
         Tt /= Tt.max()
         return w1 * T0 + w2 * Tt - k
@@ -38,13 +38,22 @@ npoints = 128
 markersize = 3
 maxmarkersize = 10
 linesize = 2
-if len(sys.argv) == 2:
+if len(sys.argv) > 1:
     file_name = sys.argv[1]
 else:
     file_name = None
+if len(sys.argv) > 2:
+    no_surround = np.load(sys.argv[2])
+    surround = np.load(sys.argv[3])
+else:
+    no_surround = np.load('plaid_no_surround_outputs_data.npy')
+    surround = np.load('orientation_tilt_outputs_data.npy')
+
 xticks = np.linspace(-90, 90, 7)
-output_dir = "results_tb_fig2"
-os.makedirs(output_dir, exist_ok=True)
+output_dir_full = "results_tb_fig2_full"
+output_dir_diff = "results_tb_fig2_diff"
+os.makedirs(output_dir_full, exist_ok=True)
+os.makedirs(output_dir_diff, exist_ok=True)
 
 # Load TB data
 neural_surround= pd.read_csv("digitized_data/drew/tb_fig2_surround.csv", header=None).values[:, 1]  # noqa
@@ -66,8 +75,6 @@ neural_surround = (neural_surround - neural_surround.min()) / neural_surround.ma
 neural_surround = (1.25 - 0.5) * neural_surround + 0.5
 
 # Load model data
-no_surround = np.load('plaid_no_surround_outputs_data.npy')
-surround = np.load('orientation_tilt_outputs_data.npy')
 no_surround = np.concatenate((no_surround, no_surround[0].reshape(1, -1)))
 surround = np.concatenate((surround, surround[0].reshape(1, -1)))
 
@@ -78,12 +85,12 @@ surround = np.concatenate((surround, surround[0].reshape(1, -1)))
 # first estimate dispersion from special case
 # (same ori, plaid-only; see paper for details) ...
 thetas = {
-    0: -90,
-    30: -60,
-    60: -30,
-    90: 0,
-    120: 30,
-    150: 60,
+    1: -90,
+    31: -60,
+    61: -30,
+    91: 0,
+    121: 30,
+    151: 60,
     -1: 90,
 }
 
@@ -110,12 +117,12 @@ for idx, (theta, par, fit) in enumerate(zip(c2c1, ps_par, ps_fit)):
 # Get gammanet model fits
 stride = np.floor(180 / no_surround.shape[0]).astype(int)
 thetas = {
-    0: -90,
-    30: -60,
-    60: -30,
-    90: 0,
-    120: 30,
-    150: 60,
+    1: -90,
+    31: -60,
+    61: -30,
+    91: 0,
+    121: 30,
+    151: 60,
     -1: 90,
 }
 
@@ -158,7 +165,7 @@ thetas = {k: v for k, v in list(thetas.items())[:-1]}
 for idx, (theta, label) in enumerate(thetas.items()):
     ax = axs[0, idx]
     it_image = io.imread(os.path.join(images, "sample_{}.png".format(theta)))  # noqa
-    ax.imshow(it_image, cmap="Greys_r")
+    ax.imshow(it_image[150:-150], cmap="Greys_r")
     ax.axis("off")
 
 # T&B plots
@@ -329,30 +336,71 @@ for idx, (theta, label) in enumerate(thetas.items()):
     if idx > 0:
         ax.set_yticklabels([""])
 if file_name is not None:
-    plt.savefig(os.path.join(output_dir, "{}_model.pdf".format(file_name)))
+    plt.savefig(os.path.join(output_dir_full, "{}_model.pdf".format(file_name)))
 else:
     plt.show()
 plt.close(f)
 
-# Prepare for stats
-ns = no_surround_curve[:, :-1].reshape(-1, 1)
+# # Stats
+ns = no_surround_curve[3, :-1].reshape(-1, 1).T.repeat(6, axis=0).reshape(-1, 1)  # noqa
 so = surround_curve[:, :-1].reshape(-1, 1)
+gt_ns = neural_no_surround[3, :-1].reshape(-1, 1).T.repeat(6, axis=0).reshape(-1, 1)
+gt_so = neural_surround[:, :-1].reshape(-1, 1)
+
+# Fit to cat(c/c+s)
 model_data = np.concatenate((ns, so), 0)
 experiments = np.arange(
     surround_curve.shape[0]).reshape(-1, 1).repeat(surround_curve.shape[0], -1).reshape(-1, 1)  # noqa
 # experiments = np.asarray([int(x) for x in thetas.keys()]).reshape(-1, 1).repeat(no_surround_curve.shape[1] - 1, 0)  # noqa
 experiments = experiments.repeat(2, 1).T.reshape(-1, 1)
 crf_ecrf = np.concatenate((np.zeros_like(ns), np.ones_like(so)), 0)
-gt_ns = neural_no_surround[:, :-1].reshape(-1, 1)
-gt_so = neural_surround[:, :-1].reshape(-1, 1)
 y = np.concatenate((gt_ns, gt_so), 0)
 bias = np.ones_like(model_data)
 X = np.concatenate((
     bias,
     model_data,
-    experiments,
     crf_ecrf,), -1)
 clf = sm.OLS(y, X).fit()
 r2 = clf.rsquared
-print("{} r^2: {}".format(r2))
-np.save(os.path.join(output_dir, "{}_scores".format(file_name)), [r2, file_name])  # noqa
+print("TB surround sup FULL {} r^2: {}".format(file_name, r2))
+np.save(os.path.join(output_dir_full, "{}_scores".format(file_name)), [r2, file_name])  # noqa
+
+# Fit to the difference between c/c+s
+model_data = ns - so
+y = gt_ns - gt_so
+experiments = np.arange(
+    surround_curve.shape[0]).reshape(-1, 1).repeat(surround_curve.shape[0], -1).reshape(-1, 1)  # noqa
+bias = np.ones_like(model_data)
+X = np.concatenate((
+    bias,
+    model_data,), -1)
+clf = sm.OLS(y, X).fit()
+r2 = clf.rsquared
+print("TB surround sup diff {} r^2: {}".format(file_name, r2))
+np.save(os.path.join(output_dir_diff, "{}_scores".format(file_name)), [r2, file_name])  # noqa
+
+# Make a histogram of the c/c+s differences
+model_data = ns[np.arange(3, len(ns), 6)] - so[np.arange(3, len(ns), 6)]
+model_data = (model_data - model_data.min(0)) / model_data.max(0)
+y = gt_ns[np.arange(3, len(ns), 6)] - gt_so[np.arange(3, len(ns), 6)]
+model_data = ns[np.arange(3, len(ns), 6)] - so[np.arange(3, len(ns), 6)]
+y = (y - y.min(0)) / y.max(0)
+f, ax = plt.subplots(1, 1, dpi=75)
+plt.plot(model_data, "ko", alpha=0.6)
+plt.title("Model data")
+ax.set_ylim([-0.05, 1.05])
+plt.xlabel("Orientation")
+plt.ylabel("90-response diff")
+plt.savefig(os.path.join(output_dir_full, "{}_c_cs_model_diff.pdf".format(file_name)))  # noqa
+# plt.show()
+plt.close(f)
+
+f, ax = plt.subplots(1, 1, dpi=75)
+plt.plot(y, "ko", alpha=0.6)
+plt.title("Neural data")
+ax.set_ylim([-0.05, 1.05])
+plt.xlabel("Orientation")
+plt.ylabel("90-response diff")
+plt.savefig(os.path.join(output_dir_full, "{}_c_cs_neural_diff.pdf".format(file_name)))  # noqa
+# plt.show()
+plt.close(f)

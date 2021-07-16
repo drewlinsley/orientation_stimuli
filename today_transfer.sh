@@ -1,0 +1,53 @@
+# TD
+scp model_outputs/INSILICO_BSDS_vgg_gratings_simple_no_hconv2_2_full_field_outputs.npy dlinsley@transfer.ccv.brown.edu:/users/dlinsley/new_circuit_responses/
+scp model_outputs/INSILICO_BSDS_vgg_gratings_simple_no_hfull_field_outputs.npy dlinsley@transfer.ccv.brown.edu:/users/dlinsley/new_circuit_responses/
+scp linear_models/INSILICO_BSDS_vgg_gratings_simple_no_h_ff_tb_model.joblib dlinsley@transfer.ccv.brown.edu:/users/dlinsley/new_circuit_responses/
+scp linear_models/INSILICO_BSDS_vgg_gratings_simple_no_h_fb_tb_model.joblib dlinsley@transfer.ccv.brown.edu:/users/dlinsley/new_circuit_responses/
+scp linear_moments/INSILICO_BSDS_vgg_gratings_simple_no_h_ff_tb_feature_matrix.npz dlinsley@transfer.ccv.brown.edu:/users/dlinsley/new_circuit_responses/
+scp linear_moments/INSILICO_BSDS_vgg_gratings_simple_no_h_fb_tb_feature_matrix.npz dlinsley@transfer.ccv.brown.edu:/users/dlinsley/new_circuit_responses/
+scp linear_models/INSILICO_BSDS_vgg_gratings_simple_no_h_conv2_2_tb_model.joblib dlinsley@transfer.ccv.brown.edu:/users/dlinsley/new_circuit_responses/
+scp linear_models/INSILICO_BSDS_vgg_gratings_simple_no_h_tb_model.joblib dlinsley@transfer.ccv.brown.edu:/users/dlinsley/new_circuit_responses/
+
+
+# H
+scp model_outputs/INSILICO_BSDS_vgg_gratings_horizontalconv2_2_full_field_outputs.npy dlinsley@transfer.ccv.brown.edu:/users/dlinsley/new_circuit_responses/
+scp model_outputs/INSILICO_BSDS_vgg_gratings_horizontalfull_field_outputs.npy dlinsley@transfer.ccv.brown.edu:/users/dlinsley/new_circuit_responses/
+scp linear_models/INSILICO_BSDS_vgg_gratings_horizontal_ff_tb_model.joblib dlinsley@transfer.ccv.brown.edu:/users/dlinsley/new_circuit_responses/
+scp linear_models/INSILICO_BSDS_vgg_gratings_horizontal_fb_tb_model.joblib dlinsley@transfer.ccv.brown.edu:/users/dlinsley/new_circuit_responses/
+scp linear_moments/INSILICO_BSDS_vgg_gratings_horizontal_ff_tb_feature_matrix.npz dlinsley@transfer.ccv.brown.edu:/users/dlinsley/new_circuit_responses/
+scp linear_moments/INSILICO_BSDS_vgg_gratings_horizontal_fb_tb_feature_matrix.npz dlinsley@transfer.ccv.brown.edu:/users/dlinsley/new_circuit_responses/
+scp linear_models/INSILICO_BSDS_vgg_gratings_simple_horizontal_conv2_2_tb_model.joblib dlinsley@transfer.ccv.brown.edu:/users/dlinsley/new_circuit_responses/
+scp linear_models/INSILICO_BSDS_vgg_gratings_simple_horizontal_tb_model.joblib dlinsley@transfer.ccv.brown.edu:/users/dlinsley/new_circuit_responses/
+
+
+#CRF
+scp model_outputs/INSILICO_BSDS_vgg_gratings_simple_crfconv2_2_full_field_outputs.npy dlinsley@transfer.ccv.brown.edu:/users/dlinsley/new_circuit_responses/
+scp model_outputs/INSILICO_BSDS_vgg_gratings_simple_crffull_field_outputs.npy dlinsley@transfer.ccv.brown.edu:/users/dlinsley/new_circuit_responses/
+scp linear_models/INSILICO_BSDS_vgg_gratings_simple_crf_ff_tb_model.joblib dlinsley@transfer.ccv.brown.edu:/users/dlinsley/new_circuit_responses/
+scp linear_models/INSILICO_BSDS_vgg_gratings_simple_crf_fb_tb_model.joblib dlinsley@transfer.ccv.brown.edu:/users/dlinsley/new_circuit_responses/
+scp linear_moments/INSILICO_BSDS_vgg_gratings_simple_crf_ff_tb_feature_matrix.npz dlinsley@transfer.ccv.brown.edu:/users/dlinsley/new_circuit_responses/
+scp linear_moments/INSILICO_BSDS_vgg_gratings_simple_crf_fb_tb_feature_matrix.npz dlinsley@transfer.ccv.brown.edu:/users/dlinsley/new_circuit_responses/
+scp linear_models/INSILICO_BSDS_vgg_gratings_simple_crf_conv2_2_tb_model.joblib dlinsley@transfer.ccv.brown.edu:/users/dlinsley/new_circuit_responses/
+scp linear_models/INSILICO_BSDS_vgg_gratings_simple_crf_tb_model.joblib dlinsley@transfer.ccv.brown.edu:/users/dlinsley/new_circuit_responses/
+
+
+# nomultiplicative
+scp model_outputs/INSILICO_BSDS_vgg_gratings_simple_no_multiplicativeconv2_2_full_field_outputs.npy dlinsley@transfer.ccv.brown.edu:/users/dlinsley/new_circuit_responses/
+scp model_outputs/INSILICO_BSDS_vgg_gratings_simple_no_multiplicativefull_field_outputs.npy dlinsley@transfer.ccv.brown.edu:/users/dlinsley/new_circuit_responses/
+scp linear_models/INSILICO_BSDS_vgg_gratings_simple_no_multiplicative_ff_tb_model.joblib dlinsley@transfer.ccv.brown.edu:/users/dlinsley/new_circuit_responses/
+scp linear_models/INSILICO_BSDS_vgg_gratings_simple_no_multiplicative_fb_tb_model.joblib dlinsley@transfer.ccv.brown.edu:/users/dlinsley/new_circuit_responses/
+scp linear_moments/INSILICO_BSDS_vgg_gratings_simple_no_multiplicative_ff_tb_feature_matrix.npz dlinsley@transfer.ccv.brown.edu:/users/dlinsley/new_circuit_responses/
+scp linear_moments/INSILICO_BSDS_vgg_gratings_simple_no_multiplicative_fb_tb_feature_matrix.npz dlinsley@transfer.ccv.brown.edu:/users/dlinsley/new_circuit_responses/
+scp linear_models/INSILICO_BSDS_vgg_gratings_simple_no_multiplicative_conv2_2_tb_model.joblib dlinsley@transfer.ccv.brown.edu:/users/dlinsley/new_circuit_responses/
+scp linear_models/INSILICO_BSDS_vgg_gratings_simple_no_multiplicative_tb_model.joblib dlinsley@transfer.ccv.brown.edu:/users/dlinsley/new_circuit_responses/
+
+# nosub
+scp model_outputs/INSILICO_BSDS_vgg_gratings_simple_no_additiveconv2_2_full_field_outputs.npy dlinsley@transfer.ccv.brown.edu:/users/dlinsley/new_circuit_responses/
+scp model_outputs/INSILICO_BSDS_vgg_gratings_simple_no_additivefull_field_outputs.npy dlinsley@transfer.ccv.brown.edu:/users/dlinsley/new_circuit_responses/
+scp linear_models/INSILICO_BSDS_vgg_gratings_simple_no_additive_ff_tb_model.joblib dlinsley@transfer.ccv.brown.edu:/users/dlinsley/new_circuit_responses/
+scp linear_models/INSILICO_BSDS_vgg_gratings_simple_no_additive_fb_tb_model.joblib dlinsley@transfer.ccv.brown.edu:/users/dlinsley/new_circuit_responses/
+scp linear_moments/INSILICO_BSDS_vgg_gratings_simple_no_additive_ff_tb_feature_matrix.npz dlinsley@transfer.ccv.brown.edu:/users/dlinsley/new_circuit_responses/
+scp linear_moments/INSILICO_BSDS_vgg_gratings_simple_no_additive_fb_tb_feature_matrix.npz dlinsley@transfer.ccv.brown.edu:/users/dlinsley/new_circuit_responses/
+scp linear_models/INSILICO_BSDS_vgg_gratings_simple_no_additive_conv2_2_tb_model.joblib dlinsley@transfer.ccv.brown.edu:/users/dlinsley/new_circuit_responses/
+scp linear_models/INSILICO_BSDS_vgg_gratings_simple_no_additive_tb_model.joblib dlinsley@transfer.ccv.brown.edu:/users/dlinsley/new_circuit_responses/
+

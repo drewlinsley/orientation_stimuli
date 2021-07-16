@@ -46,7 +46,8 @@ args.lambda_range = [60, 61]  # [30, 90]
 
 # ALIGNED WITH TB2015
 args.r1_range = [31 * 3, (31 * 3) + 1]  # [100, 120]
-args.lambda_range = [15, 16]  # [30, 90]
+# args.lambda_range = [15, 16]  # [30, 90]
+args.lambda_range = [22, 23]  # [30, 90]
 
 # args.theta1_range = [22.5, 67.5]  # H/TD
 # args.theta2_range = [22.5, 67.5]  # H/TD

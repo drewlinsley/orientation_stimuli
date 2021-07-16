@@ -4,16 +4,37 @@ from matplotlib import pyplot as plt
 import os
 import sys
 from statsmodels import api as sm
+from skimage import io
+
+
+def add_identity(axes, *line_args, **line_kwargs):
+    identity, = axes.plot([], [], *line_args, **line_kwargs)
+    def callback(axes):
+        low_x, high_x = axes.get_xlim()
+        low_y, high_y = axes.get_ylim()
+        low = max(low_x, low_y)
+        high = min(high_x, high_y)
+        identity.set_data([low, high], [low, high])
+    callback(axes)
+    axes.callbacks.connect('xlim_changed', callback)
+    axes.callbacks.connect('ylim_changed', callback)
+    return axes
 
 
 # Config
 linesize = 2
 markersize = 9
-if len(sys.argv) == 2:
+if len(sys.argv) > 1:
     file_name = sys.argv[1]
 else:
     file_name = None
-plot_images = False
+
+if len(sys.argv) > 2:
+    no_surround = np.load(sys.argv[2])
+else:
+    no_surround = np.load('contrast_modulated_no_surround_outputs_data.npy')
+
+plot_images = True
 output_dir = "results_bwc_fig4a"
 os.makedirs(output_dir, exist_ok=True)
 
@@ -34,9 +55,9 @@ for idx in range(nv):
         t_paper[idx, jdx], y_paper[idx, jdx] = np.genfromtxt(
             csvfiles[idx, jdx], delimiter=',').T
 
-no_surround = np.load('contrast_modulated_no_surround_outputs_data.npy')
+# no_surround = np.load('contrast_modulated_no_surround_outputs_data.npy')
 # no_surround = np.concatenate((no_surround, no_surround[0].reshape(1, -1)), 0)
-metas = np.load("contrast_modulated_no_surround_outputs/1.npy", allow_pickle=True, encoding="latin1")  # noqa
+metas = np.load("responses/contrast_modulated_no_surround_outputs/1.npy", allow_pickle=True, encoding="latin1")  # noqa
 metas = metas.reshape(-1, 14)
 # mask = (np.asarray(metas[:, 4]).astype(int) == -45)
 # metas = metas[mask]
@@ -51,43 +72,9 @@ contrasts = (metas[:, -2:]).astype(float)
 no_surround = np.roll(no_surround, 180 - 135, axis=0)
 # no_surround = np.concatenate((no_surround[0][None], no_surround), axis=0)
 
-# idx3a = np.asarray([0, 5, 10, 20, 2, 7, 12, 17])
-
 # print("Using center+Surround stim (fuller field).")
 # no_surround = surround
 
-# sns.set_style("darkgrid", {"axes.facecolor": ".9"})
-# f = plt.figure(figsize=(7, 4))
-# max_surround, max_surround_idx = [], []
-# max_no_surround, max_no_surround_idx = [], []
-# img_data = np.load("images_contrast_modulated_no_surround_outputs_data.npy")
-# plt.suptitle("Busse and Wade Fig 3a")
-# count = 1
-# for c in range(4):
-#     for r in range(2):
-#         ax = plt.subplot(4, 4, count)
-#         it_no_surround = no_surround[idx3a[count - 1]]
-#         ax.plot(ranges, it_no_surround, label="no surround", color="Black", alpha=0.5, marker=".")  # noqa
-#         plt.title(str(contrasts[count - 1]))
-#         if r + c == 0:
-#             plt.ylabel("Parameter loading")
-#             # plt.legend(loc="best")
-#         if r + c > 0:
-#             # ax.set_yticklabels([""])
-#             pass
-#         if r == 4:
-#             plt.xticks([-45, 0, 45, 90, 135])
-#         else:
-#             ax.set_xticklabels([""])
-#         # plt.ylim([0.45, 0.6])
-
-#         # Now load the image
-#         ax = plt.subplot(4, 4, count + 8)
-#         ax.imshow(img_data[idx3a[count - 8], ..., 0], cmap="Greys_r")
-#         ax.axis("off")
-#         count += 1
-# plt.show()
-# plt.close(f)
 
 sns.set_style("darkgrid", {"axes.facecolor": ".9"})
 
@@ -98,10 +85,12 @@ max_surround, max_surround_idx = [], []
 max_no_surround, max_no_surround_idx = [], []
 plt.suptitle("Busse, Wade, & Carandini Fig 4a")
 count = 1
+neural_diffs = []
 for r in range(5):
     for c in range(5):
         ax = plt.subplot(5, 5, count)
         it_neural = y_paper[r, c, :]
+        neural_diffs.append([it_neural[3], it_neural[9]])
         ax.plot(
             ranges,
             it_neural,
@@ -136,6 +125,61 @@ else:
     plt.show()
 plt.close(f)
 
+# Plot truncated dataset
+f = plt.figure(figsize=(7, 4))
+try:
+    img_data = np.load("images_model_outputs/images_gammanet_full_contrast_modulated_no_surround_outputs_data.npy")
+    loaded_imgs = True
+except:
+    print("Failed to load BWC images.")
+    loaded_imgs = False
+plt.suptitle("Busse and Wade Fig 3a")
+count = 1
+ranges = np.linspace(-45, 135, 13)
+res_no_surround = no_surround.reshape(-1, 5, 5)
+idx3a = np.asarray([
+    [0, 0],
+    [0, 1],
+    [0, 2],
+    [0, 4],
+    [2, 0],
+    [2, 1],
+    [2, 2],
+    [2, 4]])
+try:
+    for c in range(4):
+        for r in range(2):
+            ax = plt.subplot(4, 4, count)
+            it_no_surround = res_no_surround[:, idx3a[count - 1, 0], idx3a[count - 1, 1]]  # noqa
+            it_no_surround = np.concatenate((it_no_surround, [it_no_surround[0]]), 0)  # noqa
+            ax.plot(ranges, it_no_surround, label="no surround", color="Black", alpha=0.5, marker=".")  # noqa
+            ax.set_ylim([-0.1, 0.1])
+            ax.set_xlim([-50, 150])
+            ax.set_xticks([-45, 0, 45, 90, 135])
+            ax.set_yticks([0, 0.1])
+            if r + c == 0:
+                plt.ylabel("Circuit activity")
+            if r + c > 0:
+                pass
+            if r == 4:
+                plt.xticks([-45, 0, 45, 90, 135])
+            else:
+                ax.set_xticklabels([""])
+
+            # Now load the image
+            ax = plt.subplot(4, 4, count + 8)
+            ax.imshow(img_data[idx3a[count - 8][1], ..., 0], cmap="Greys_r")
+            ax.axis("off")
+            count += 1
+    if file_name is not None:
+        plt.savefig(
+            os.path.join(output_dir, "{}_truncated_images.pdf".format(file_name)))
+    else:
+        plt.show()
+    plt.close(f)
+except:
+    print("Failed to plot simple fig.")
+
 # Plot model data
 ranges = np.linspace(-45, 135, no_surround.shape[0] + 1)[:no_surround.shape[0] + 1]  # noqa
 f = plt.figure(figsize=(8, 5))
@@ -143,11 +187,13 @@ max_surround, max_surround_idx = [], []
 max_no_surround, max_no_surround_idx = [], []
 plt.suptitle("Busse, Wade, & Carandini Fig 4a")
 count = 1
+model_diffs = []
 for r in range(5):
     for c in range(5):
         ax = plt.subplot(5, 5, count)
         it_no_surround = no_surround[:, count - 1]
         it_no_surround = np.concatenate((it_no_surround, [it_no_surround[0]]), 0)  # noqa
+        model_diffs.append([it_no_surround[3], it_no_surround[9]])
         ax.plot(
             ranges,
             it_no_surround,
@@ -159,10 +205,14 @@ for r in range(5):
             markersize=markersize,
             marker=".")  # noqa
         # plt.title(str(contrasts[count - 1]))
-        ax.set_ylim([-0.1, 1.1])
+        # ax.set_ylim([-0.1, 1.1])
+        # ax.set_xlim([-50, 150])
+        # ax.set_xticks([-45, 0, 45, 90, 135])
+        # ax.set_yticks([0, 0.25, 0.5, 0.75, 1.])
+        ax.set_ylim([-0.1, 0.5])
         ax.set_xlim([-50, 150])
         ax.set_xticks([-45, 0, 45, 90, 135])
-        ax.set_yticks([0, 0.25, 0.5, 0.75, 1.])
+        ax.set_yticks([0, 0.1, 0.2, 0.3, 0.4])
         if r != 4:
             ax.set_xticklabels([""])
         if c != 0:
@@ -182,24 +232,56 @@ else:
     plt.show()
 plt.close(f)
 
+# Plot scatter of the differences between [3] and [9]
+neural_diffs = np.asarray(neural_diffs)
+model_diffs = np.asarray(model_diffs)
+neural_diffs = (neural_diffs - neural_diffs.min(0)) / neural_diffs.max(0)
+model_diffs = (model_diffs - model_diffs.min(0)) / model_diffs.max(0)
+
+f, ax = plt.subplots(1, 1, dpi=75)
+ax.scatter(neural_diffs[:, 0], neural_diffs[:, 1], alpha=0.6, color="black")  # noqa
+ax.set_xlim(-0.05, 1.05)
+ax.set_ylim(-0.05, 1.05)
+plt.xlabel("45 degree response")
+plt.ylabel("135 degree response")
+add_identity(ax, color='black', ls='--')
+plt.title("Neural differences")
+# plt.show()
+plt.savefig(os.path.join(output_dir, "{}_differences_neural.pdf".format(file_name)))  # noqa
+plt.close(f)
+f, ax = plt.subplots(1, 1, dpi=75)
+ax.scatter(model_diffs[:, 0], model_diffs[:, 1], alpha=0.6, color="black")  # noqa
+ax.set_xlim(-0.05, 1.05)
+ax.set_ylim(-0.05, 1.05)
+plt.xlabel("45 degree response")
+plt.ylabel("135 degree response")
+add_identity(ax, color='black', ls='--')
+plt.title("Model differences")
+# plt.show()
+plt.savefig(os.path.join(output_dir, "{}_differences_model.pdf".format(file_name)))  # noqa
+plt.close(f)
+
 # Plot images as a control
-if plot_images:
-    img_data = np.load("images_contrast_modulated_no_surround_outputs_data.npy")  # noqa
+if plot_images and loaded_imgs:
+    img_data = np.load("images_model_outputs/images_gammanet_full_contrast_modulated_no_surround_outputs_data.npy")  # noqa
     plt.suptitle("Trott and Born Fig 3C")
+    from glob import glob
+    ims = glob("contrast_modulated_no_surround/test/imgs/1/*")[::-1]
     count = 1
     for r in range(5):
         for c in range(5):
             ax = plt.subplot(5, 5, count)
-            ax.imshow(img_data[count - 1, ..., 0], cmap="Greys_r", vmin=img_data.min(), vmax=img_data.max())  # noqa
-            plt.title(str(contrasts[count - 1]))
-            ax.axis("off")
+            # ax.imshow(img_data[count - 1, ..., 0][50:-50, 50:-50], cmap="Greys_r", vmin=img_data.min(), vmax=img_data.max())  # noqa
+            ax.imshow(io.imread(ims[count - 1])[50:-50, 50:-50] / (255 / 8), cmap="Greys_r", vmin=img_data.min(), vmax=img_data.max())  # noqa
+            plt.ylabel(str(contrasts[count - 1]), fontsize=8)
+            plt.axis("off")
             count += 1
     if file_name is not None:
         plt.savefig(
             os.path.join(output_dir, "{}_images.pdf".format(file_name)))
     else:
         plt.show()
-        plt.close(f)
+plt.close(f)
 
 # Prepare for stats
 no_surround_stats = no_surround.T
@@ -211,10 +293,9 @@ bias = np.ones_like(y)
 X = np.concatenate((
     bias,
     no_surround_stats.reshape(-1, 1),
-    experiments.reshape(-1, 1),
 ), -1)
 clf = sm.OLS(y, X).fit()
 r2 = clf.rsquared
-print("{} r^2: {}".format(r2))
+print("BWC {} r^2: {}".format(file_name, r2))
 np.save(
     os.path.join(output_dir, "{}_scores".format(file_name)), [r2, file_name])

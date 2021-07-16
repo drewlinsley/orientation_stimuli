@@ -6,10 +6,11 @@ import os
 import imageio
 from tqdm import tqdm
 import pickle
-
+from skimage.transform import rotate
 
 TB_LIST = [-90, -60, -30, 30, 60, 90]
 # TB_LIST = [-30]
+
 
 def create_annuli_mask(r, imsize):
     rr, cc = circle(imsize[0]//2, imsize[1]//2, r)
@@ -18,6 +19,7 @@ def create_annuli_mask(r, imsize):
     obj_strt_img = np.zeros((imsize[0], imsize[1]))
     obj_strt_img[rr_cut, cc_cut] = 1
     return obj_strt_img
+
 
 def create_sinusoid(imsize, theta, lmda, shift, amplitude=1.):
     radius = (int(imsize[0]/2.0), int(imsize[1]/2.0))
@@ -31,9 +33,24 @@ def create_sinusoid(imsize, theta, lmda, shift, amplitude=1.):
     stimuli -= 1
     return stimuli
 
-def create_image(imsize,
-                 r1, theta1, lambda1, shift1,
-                 r2=None, theta2=None, lambda2=None, shift2=None, dual_center=False, surround=True, surround_control=False):
+
+def create_image(
+        imsize,
+        r1,
+        theta1,
+        lambda1,
+        shift1,
+        gilbert_mask=False,
+        gilbert_train=False,
+        r2=None,
+        theta2=None,
+        lambda2=None,
+        shift2=None,
+        dual_center=False,
+        surround=True,
+        surround_control=False):
+    if gilbert_mask:
+        shift1, shift2 = 350,350
     mask1 = create_annuli_mask(r1, imsize)
     sin1 = create_sinusoid(imsize, theta1, lambda1, shift1)
     if dual_center and shift2 is not None:
@@ -61,7 +78,31 @@ def create_image(imsize,
         if not surround_control:
             middle_mask = middle_mask - mask1
         image[middle_mask > 0] = 0
+    if gilbert_mask and r2 is not None:
+        # Mask the image
+        mask = np.copy(image)
+        mask[:, :246] = -1000
+        mask[:, 253:] = -1000
+        mask = mask != -1000
+        mask = rotate(mask, theta1, order=0, preserve_range=True)
+        image = image * mask.astype(np.float32) * (1 - mask2 + mask1)
+        patch_hw = np.where(mask1)
+        patch = image[patch_hw[0].min(): patch_hw[0].max(), patch_hw[1].min(): patch_hw[1].max()]
+        patch = rotate(patch, theta2, order=1, preserve_range=True)
+        mask_hw = np.where(mask2)
+        if gilbert_train:
+            image = np.zeros_like(image)
+            image[patch_hw[0].min(): patch_hw[0].max(), patch_hw[1].min(): patch_hw[1].max()] = patch
+        else:
+            # Now take out the center and move it to the surround
+            # image[mask_hw[0].max() - patch.shape[0]: mask_hw[0].max(), patch_hw[1].min(): patch_hw[1].max()] = patch
+            # image[mask_hw[0].min(): mask_hw[0].min() + patch.shape[0], patch_hw[1].min(): patch_hw[1].max()] = patch
+            image[mask_hw[0].max() - patch.shape[0]: mask_hw[0].max(), patch_hw[1].min() - patch.shape[1] // 2: patch_hw[1].min() + patch.shape[1] // 2] = patch
+            image[mask_hw[0].min(): mask_hw[0].min() + patch.shape[0], patch_hw[1].max() - patch.shape[1] // 2: patch_hw[1].max() + patch.shape[1] // 2] = patch
+    image += 1
+    image *= 127.5
     return image
+
 
 def accumulate_meta(array,
                     im_sub_path, im_fn, iimg,
@@ -73,6 +114,7 @@ def accumulate_meta(array,
               r2, theta2, lambda2, shift2, dual_center]
     return array
 
+
 def save_metadata(metadata, contour_path, batch_id):
     # Converts metadata (list of lists) into an nparray, and then saves
     metadata_path = os.path.join(contour_path, 'metadata')
@@ -83,7 +125,8 @@ def save_metadata(metadata, contour_path, batch_id):
     with open(os.path.join(metadata_path, metadata_fn), "wb") as f:
         pickle.dump(metadata, f, protocol=2)
 
-def from_wrapper(args, train=True, dual_centers=[90], control_stim=False, surround=True, include_null=False, surround_control=False):  # -90, -60, -30, 0, 60]):
+
+def from_wrapper(args, train=True, dual_centers=[90], control_stim=False, surround=True, include_null=False, surround_control=False, gilbert_mask=False, gilbert_train=False):  # -90, -60, -30, 0, 60]):
     import time
     import scipy
 
@@ -112,13 +155,15 @@ def from_wrapper(args, train=True, dual_centers=[90], control_stim=False, surrou
                  for k in theta1_range]
     for iimg, combo in tqdm(enumerate(combos), total=len(combos), desc="Building dataset"):
         t = time.time()
-        # print('Image# : %s' % (iimg))
+
+        # Correct label names
+        iimg = 180 - iimg
         im_fn = "sample_%s.png" % (iimg)
 
         ##### SAMPLE IMAGE PARAMETERS
         r1, lmda, theta1 = combo
         theta2 = theta1
-        shift1 = 0  # 180
+        shift1 = 180  # 180
         if train:
             r2=None
             theta2=None
@@ -136,7 +181,7 @@ def from_wrapper(args, train=True, dual_centers=[90], control_stim=False, surrou
             img = create_image(
                 args.image_size,
                 r1, theta1, lmda, shift1,
-                r2=r2, theta2=theta2, lambda2=lmda, shift2=shift2, dual_center=dual_center, surround=surround, surround_control=surround_control)
+                r2=r2, theta2=theta2, lambda2=lmda, shift2=shift2, dual_center=dual_center, surround=surround, surround_control=surround_control, gilbert_mask=gilbert_mask, gilbert_train=gilbert_train)
 
             if (args.save_images):
                 imageio.imwrite(os.path.join(args.dataset_path, im_sub_path, im_fn), img)
@@ -155,6 +200,7 @@ def from_wrapper(args, train=True, dual_centers=[90], control_stim=False, surrou
 
     return
 
+
 if __name__ == "__main__":
     # generate test sample image
     params = {'imsize': [500, 500],
@@ -169,4 +215,3 @@ if __name__ == "__main__":
               'shift2': 0}
     im1 = create_image(**params)
     plt.imshow(im1, cmap='Greys_r');plt.show()
-

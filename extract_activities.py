@@ -66,8 +66,8 @@ def main(
     # extract_key = "pool_act_5mean"  # or f*
     # extract_key = "pool_act_10mean"  # or f*
 
-    extract_key = "prepre_ephys"  # First out of GN
-    # extract_key = "pre_ephys"  # Post IN
+    # extract_key = "prepre_ephys"  # First out of GN
+    extract_key = "pre_ephys"  # Post IN
     # extract_key = "ephys"  # Pre cos/sin 1x1 conv
     # extract_key = "logits"  # cos/sin readout for orientation
     for d in out_data_arr:

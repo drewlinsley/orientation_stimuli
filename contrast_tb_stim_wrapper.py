@@ -2,7 +2,7 @@ import time
 import sys
 import numpy as np
 import os
-import tb_stim  # import tilt_illusion
+import contrast_tb_stim  as tb_stim  # import tilt_illusion
 
 class Args:
     def __init__(self):
@@ -14,17 +14,10 @@ args = Args()
 ## Constraints
 num_machines = int(sys.argv[1])
 args.batch_id = int(sys.argv[2])
+dataset_root = str(sys.argv[4])
+contrast = float(sys.argv[5])
 # total_images = int(sys.argv[3])
 # args.n_images = total_images/num_machines
-
-if len(sys.argv)==4:
-    print('Using default path...')
-    dataset_root = 'images'  # '/Users/junkyungkim/Desktop/tilt_illusion'
-elif len(sys.argv)==5:
-    print('Using custom save path...')
-    dataset_root = str(sys.argv[4])
-else:
-    raise ValueError('wrong number of args')
 
 ## Parameters
 args.image_size = [500, 500]
@@ -38,7 +31,6 @@ args.r1_range = [119, 120]  # [100, 120]
 args.lambda_range = [44, 45]  # [30, 90]
 args.lambda_range = [40, 41]  # [30, 90]
 args.lambda_range = [60, 61]  # [30, 90]
-
 
 # ALIGNED WITH TB2015
 args.r1_range = [31 * 3, (31 * 3) + 1]  # [100, 120]
@@ -69,16 +61,6 @@ elif dataset_root == "orientation_probe_no_surround":
 elif dataset_root == "surround_control":
     dual_centers = [180]
     surround_control = True
-elif dataset_root == "gilbert_angelluci":
-    control_stim = True  # Produce tilt-illusion-style stim (Fig. 2 of T&B)
-    surround = True
-    gilbert_mask = True  # Produce tilt-illusion-style stim (Fig. 2 of T&B)
-    gilbert_train = False
-elif dataset_root == "gilbert_angelluci_train":
-    control_stim = True  # Produce tilt-illusion-style stim (Fig. 2 of T&B)
-    surround = True
-    gilbert_mask = True  # Produce tilt-illusion-style stim (Fig. 2 of T&B)
-    gilbert_train = True
 else:
     raise NotImplementedError(dataset_root)
 
@@ -86,10 +68,17 @@ else:
 # dual_centers = [180]  # T&B-style stimuli
 # control_stim = True  # Produce tilt-illusion-style stim (Fig. 2 of T&B)
 
-################################# train
+contrasts = [0.06, 0.12, 0.25, 0.5, 0.75, 0.99]
+contrasts = [0.75, 0.99]
+
+# for contrast in contrasts:
+args.contrast_range = [contrast]  # [contrast, contrast + 0.01]
 dataset_subpath = 'train'
-args.dataset_path = os.path.join(dataset_root, dataset_subpath)
-tb_stim.from_wrapper(args, train=True, dual_centers=dual_centers, control_stim=control_stim, surround=surround)
+it_dataset_root = "optim_contrast_{}_{}".format(contrast, dataset_root)
+
+################################# train
+# args.dataset_path = os.path.join(it_dataset_root, dataset_subpath)
+# tb_stim.from_wrapper(args, train=True, dual_centers=dual_centers, control_stim=control_stim, surround=surround)
 
 ################################# test
 dataset_subpath = 'test'
@@ -97,8 +86,6 @@ dataset_subpath = 'test'
 
 # ALIGNED WITH TB2015
 args.r1_range = [args.r1_range[0]/4, args.r1_range[1]/4]  # Remember 500 -> 224 resize for the model
-args.dataset_path = os.path.join(dataset_root, dataset_subpath)
-if dataset_root == "gilbert":
-    surround = True
-tb_stim.from_wrapper(args, train=False, dual_centers=dual_centers, control_stim=control_stim, gilbert_mask=gilbert_mask, gilbert_train=gilbert_train, surround=surround, surround_control=surround_control)
+args.dataset_path = os.path.join(it_dataset_root, dataset_subpath)
+tb_stim.from_wrapper(args, train=False, dual_centers=dual_centers, control_stim=control_stim, surround=surround, surround_control=surround_control)
 

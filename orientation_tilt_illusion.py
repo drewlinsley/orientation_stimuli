@@ -5,7 +5,6 @@ from glob import glob
 from joblib import dump, load
 from matplotlib import pyplot as plt
 from argparse import ArgumentParser
-from scipy import linalg as slinalg
 
 
 def main(
@@ -25,23 +24,19 @@ def main(
         debug=False,
         decompose=False,
         normalize=False,
-        inv=slinalg.pinv,  # np.linalg.pinv,
+        inv=np.linalg.inv,
         start_idx=1280,
         idx_stride=128,
         population=False,
         include_null=False,
-        extract_key="prepre_ephys",
         exp_diff=3,
         feature_select=1.,
         cross_validate=False):
     """Create and test IEM models."""
+
     # Find and load paths
     paths = glob(os.path.join(file_name, "*.npz"))
-    try:
-        meta = glob(os.path.join(file_name, "*.npy"))[0]
-    except:
-        import pdb;pdb.set_trace()
-        file_name
+    meta = glob(os.path.join(file_name, "*.npy"))[0]
     paths.sort(key=os.path.getmtime)
     path = paths[-1]
     out_data = np.load(path, allow_pickle=True, encoding="latin1")
@@ -62,32 +57,14 @@ def main(
     # Store model responses
     responses = []
     images = []
-    # extract_key = "prepre_ephys"  # First out of GN
-    # extract_key = "pre_ephys"  # Po1st IN
-    # extract_key = "ephys"  # Pre cos/sin 1x1 conv
-    # extract_key = "logits"  # cos/sin readout for orientation
-    # [0 128] [128 256] [245 384] [384 512]
-    # [512 640] [640 768] [768 896] [896 1024]
-    # [1024 1152] [1152 1280] [1280 1408] [1408 1536]
-    # [1536 1664] [1664 1792] [1792 1920] [1920 2048]
-    # 110:114, 110:114
-    if population:
-        # r1 = np.arange(128, 384, dtype=int)
-        # r2 = np.arange(640, 896, dtype=int)
-        # r3 = np.arange(1152, 1408, dtype=int)
-        # r4 = np.arange(1664, 1920, dtype=int)
-        # units = np.concatenate((r1, r2, r3, r4))  # 2x2 Center cube
-        units = np.arange(2048)  # 4x4 cube
-    else:
-        units = np.arange(start_idx, start_idx + idx_stride, dtype=int)
+    extract_key = "logits"  # cos/sin readout for orientation
     for d in out_data_arr:
         if save_images:
             images.append(d["images"].squeeze())
-        responses.append(d[extract_key].squeeze(0)[units])  # noqa Pre cos/sin 1x1 conv
+        responses.append(d[extract_key].squeeze(0))  # noqa Pre cos/sin 1x1 conv
     responses = np.asarray(responses)
     if save_images:
-        os.makedirs("images_model_outputs", exist_ok=True)
-        output_image_name = os.path.join("images_model_outputs", "images_{}".format("gammanet_full_contrast_modulated_no_surround_outputs_data.npy"))  # noqa
+        output_image_name = "images_{}".format(model_output)
         np.save(output_image_name, images)
         print("Saved images to {}".format(output_image_name))
     D = 128
@@ -104,8 +81,8 @@ def main(
     else:
         raise NotImplementedError(pool_type)
     print("# response units is {}".format(responses.shape[-1]))
-    if extract_key == "logits":
-        responses = np.roll((((np.arctan2(responses[:, 0], responses[:, 1])) * 180 / np.pi) % 360), 90).reshape(-1, 1)  # noqa
+    # if extract_key == "logits":
+    #     responses = np.roll((((np.arctan2(responses[:, 0], responses[:, 1])) * 180 / np.pi) % 180), 90).reshape(-1, 1)  # noqa
 
     # Correct meta: Remove 180 degrees and reverse.
     meta_col = meta_arr[:, 4].astype(int)
@@ -118,6 +95,7 @@ def main(
 
     # Begin IEM logic
     if train_model:
+        return
         print("Meta len: {}, Response len: {}".format(len(meta_arr), len(responses)))  # noqa
         if len(meta_arr) == len(responses):
             print("# responses == # metas")
@@ -167,12 +145,12 @@ def main(
         # print("Keeping {} features".format(len(idx)))
 
         # Compute moments
-        # means = responses.mean()
-        # stds = responses.std() + 1e-12
-        means = responses.min()
-        stds = responses.max()
+        means = responses.mean()
+        stds = responses.std() + 1e-12
+        # means = responses.min()
+        # stds = responses.max()
         if normalize:
-            responses = (responses - means) / (stds - means)
+            responses = (responses - means) / stds
 
         if decompose:
             preproc = decomposition.NMF(n_components=channels, random_state=0, verbose=False, alpha=0., max_iter=10000)  # noqa
@@ -192,13 +170,11 @@ def main(
         print("Matrix rank: {}, matrix shape: {}".format(np.linalg.matrix_rank(indicator_matrix), indicator_matrix.shape[1]))  # noqa
         responses = responses.T  # voxels X trials
         indicator_matrix = indicator_matrix.T  # channels X trials
-        # clf = responses @ indicator_matrix.T @ inv(indicator_matrix @ indicator_matrix.T)  # noqa
-
-        clf = responses @ inv(indicator_matrix)
-
+        clf = responses @ indicator_matrix.T @ inv(indicator_matrix @ indicator_matrix.T)  # noqa
         dump(clf, model_file)
-        print("Model saved to {}".format(model_file))
+        print("Model saved to: {}".format(clf))
         np.savez(train_moments, idx=idx, means=means, stds=stds)
+        print("Moments saved to: {}".format(train_moments))
 
         # Third, plot Y and X to share with lax
         if debug:
@@ -223,29 +199,9 @@ def main(
         means = moments['means']
         stds = moments['stds']
         idx = moments['idx']
-        if "orientation_probe_no_surround_outputs" in model_output or "orientation_probe_outputs" in model_output:  # noqa
-            if include_null:
-                null_npzs = glob(os.path.join(null_npz, "*.npz"))
-                null_npzs.sort(key=os.path.getmtime)
-                null_npz = null_npzs[-1]
-                null_response = np.load(null_npz, allow_pickle=True, encoding="latin1")  # noqa
-                null_response = null_response["test_dict"]
-                null_response = null_response[0][extract_key].squeeze(0)[units].reshape(1, -1)  # noqa Vector response to 0 contrast
-                responses = np.concatenate((null_response, responses))
-            else:
-                responses = np.concatenate((responses[0].reshape(1, -1), responses))  # noqa
-        responses = responses[:, idx]
-        clf = load(model_file)
-        if normalize:
-            responses = (responses - means) / stds
-
-        if decompose:
-            preproc = load(preproc_file)
-            responses = preproc.transform(responses)
-        # predictions = inv(clf.T @ clf) @ clf.T @ responses.T
-        predictions = inv(clf) @ responses.T
-
-        np.save(model_output, predictions)
+        orientations = np.arange(180)
+        responses = ((((np.arctan2(responses[:, 0], responses[:, 1])) * 180 / np.pi) % 180)).reshape(-1, 1)  # noqa
+        np.save(model_output, responses)
     print("Finished {}".format(file_name))
 
 
@@ -275,12 +231,6 @@ if __name__ == '__main__':
         dest="train_moments",
         default=None,
         help="Name of npz file to save and load moments from training.")
-    parser.add_argument(
-        "--extract_key",
-        type=str,
-        dest="extract_key",
-        default="prepre_ephys",
-        help="Model extraction key.")
     parser.add_argument(
         "--meta_dim",
         type=int,
@@ -318,23 +268,11 @@ if __name__ == '__main__':
         default=False,
         help="Get indices for a population cross at the middle of the stim.")
     parser.add_argument(
-        "--normalize",
-        action="store_true",
-        dest="normalize",
-        default=False,
-        help="Use normalization.")
-    parser.add_argument(
         "--save_images",
         action="store_true",
         dest="save_images",
         default=False,
         help="Save images for plotting later.")
-    parser.add_argument(
-        "--debug",
-        action="store_true",
-        dest="debug",
-        default=False,
-        help="Debug.")
     parser.add_argument(
         "--model_file",
         type=str,
