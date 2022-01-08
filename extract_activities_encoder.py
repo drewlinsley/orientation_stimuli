@@ -1,4 +1,3 @@
-"""Train and test inverted encoding models."""
 import numpy as np
 import os
 from glob import glob
@@ -15,7 +14,7 @@ def main(
         model_output,
         train_moments,
         train_model=False,
-        null_npz="responses/contrast_modulated_no_surround_outputs",
+        null_npz="../refactor_gammanet/INSILICO_data/INSILICO_gammanet_bsds_gratings_1//INSILICO_gammanet_bsds_gratings_1_contrast_test_no_surround",
         save_images=False,
         model_file="linear_model.joblib",
         preproc_file="preproc.joblib",
@@ -24,24 +23,28 @@ def main(
         pool_type=None,
         debug=False,
         decompose=False,
-        normalize=False,
+        normalize=True,
         inv=slinalg.pinv,  # np.linalg.pinv,
         start_idx=1280,
         idx_stride=128,
+        meta_col=4,
         population=False,
         include_null=False,
-        extract_key="prepre_ephys",
+        extract_key=None,  # "prepre_ephys",  # "prepre_ephys",
         exp_diff=3,
         feature_select=1.,
         cross_validate=False):
     """Create and test IEM models."""
+    normalize = False
+    # debug = True
     # Find and load paths
     paths = glob(os.path.join(file_name, "*.npz"))
     try:
         meta = glob(os.path.join(file_name, "*.npy"))[0]
     except:
         import pdb;pdb.set_trace()
-        file_name
+        print("Failed on {}".format(file_name))
+        os._exit(1)
     paths.sort(key=os.path.getmtime)
     path = paths[-1]
     out_data = np.load(path, allow_pickle=True, encoding="latin1")
@@ -73,11 +76,12 @@ def main(
     # 110:114, 110:114
     if population:
         # r1 = np.arange(128, 384, dtype=int)
-        # r2 = np.arange(640, 896, dtype=int)
-        # r3 = np.arange(1152, 1408, dtype=int)
+        r2 = np.arange(640, 896, dtype=int)
+        r3 = np.arange(1152, 1408, dtype=int)
         # r4 = np.arange(1664, 1920, dtype=int)
-        # units = np.concatenate((r1, r2, r3, r4))  # 2x2 Center cube
+        # units = np.concatenate((r2, r3))  # 2x2 Center cube
         units = np.arange(2048)  # 4x4 cube
+        # units = np.asarray([1023])
     else:
         units = np.arange(start_idx, start_idx + idx_stride, dtype=int)
     for d in out_data_arr:
@@ -108,7 +112,7 @@ def main(
         responses = np.roll((((np.arctan2(responses[:, 0], responses[:, 1])) * 180 / np.pi) % 360), 90).reshape(-1, 1)  # noqa
 
     # Correct meta: Remove 180 degrees and reverse.
-    meta_col = meta_arr[:, 4].astype(int)
+    meta_col = meta_arr[:, meta_col].astype(int)
     if meta_col.min() == -90:
         meta_col = meta_col + 90
     else:
@@ -167,12 +171,12 @@ def main(
         # print("Keeping {} features".format(len(idx)))
 
         # Compute moments
-        # means = responses.mean()
-        # stds = responses.std() + 1e-12
-        means = responses.min()
-        stds = responses.max()
+        means = responses.mean()
+        stds = responses.std() + 1e-12
+        # means = responses.min()
+        # stds = responses.max()
         if normalize:
-            responses = (responses - means) / (stds - means)
+            responses = (responses - means) / stds
 
         if decompose:
             preproc = decomposition.NMF(n_components=channels, random_state=0, verbose=False, alpha=0., max_iter=10000)  # noqa
@@ -180,7 +184,8 @@ def main(
             # preproc = decomposition.PCA(n_components=channels, random_state=0, whiten=False)  # noqa
             preproc.fit(responses)
             responses = preproc.transform(responses)
-            dump(preproc, preproc_file)
+            # dump(preproc, preproc_file)
+            dump(preproc, preproc_file, protocol=2)
 
         if "both" in file_name:
             raise NotImplementedError
@@ -196,7 +201,8 @@ def main(
 
         clf = responses @ inv(indicator_matrix)
 
-        dump(clf, model_file)
+        # dump(clf, model_file)
+        dump(clf, model_file, protocol=2)
         print("Model saved to {}".format(model_file))
         np.savez(train_moments, idx=idx, means=means, stds=stds)
 
@@ -214,7 +220,7 @@ def main(
             plt.imshow(clf)
             plt.subplot(143)
             plt.title('inverse')
-            plt.imshow(inv(indicator_matrix @ indicator_matrix.T))
+            plt.imshow(inv(clf) @ responses)  # inv(indicator_matrix @ indicator_matrix.T))
             plt.show()
             plt.close(f)
 
@@ -244,6 +250,20 @@ def main(
             responses = preproc.transform(responses)
         # predictions = inv(clf.T @ clf) @ clf.T @ responses.T
         predictions = inv(clf) @ responses.T
+
+        if debug:
+            f = plt.figure()
+            plt.subplot(144)
+            plt.title('Y')
+            plt.imshow(responses.T)
+            plt.subplot(142)
+            plt.title('Parameters')
+            plt.imshow(clf)
+            plt.subplot(143)
+            plt.title('inverse')
+            plt.imshow(predictions)  # inv(indicator_matrix @ indicator_matrix.T))
+            plt.show()
+            plt.close(f)
 
         np.save(model_output, predictions)
     print("Finished {}".format(file_name))
@@ -279,13 +299,20 @@ if __name__ == '__main__':
         "--extract_key",
         type=str,
         dest="extract_key",
-        default="prepre_ephys",
+        default="l23",
+        # default="prepre_ephys",
         help="Model extraction key.")
     parser.add_argument(
         "--meta_dim",
         type=int,
         dest="meta_dim",
         default=None,
+        help="Number of dimensions in meta file.")
+    parser.add_argument(
+        "--meta_col",
+        type=int,
+        dest="meta_col",
+        default=4,  # None,
         help="Number of dimensions in meta file.")
     parser.add_argument(
         "--exp_diff",
@@ -317,11 +344,17 @@ if __name__ == '__main__':
         dest="population",
         default=False,
         help="Get indices for a population cross at the middle of the stim.")
+    # parser.add_argument(
+    #     "--normalize",
+    #     action="store_true",
+    #     dest="normalize",
+    #     default=False,
+    #     help="Use normalization.")
     parser.add_argument(
-        "--normalize",
-        action="store_true",
+        "--no-normalize",
+        action="store_false",
         dest="normalize",
-        default=False,
+        default=True,
         help="Use normalization.")
     parser.add_argument(
         "--save_images",

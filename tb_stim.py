@@ -42,11 +42,18 @@ def create_image(
         shift1,
         gilbert_mask=False,
         gilbert_train=False,
+        gilbert_offset=False,
+        gilbert_repulse=False,
+        gilbert_shift=False,
+        gilbert_box=False,
+        flip_polarity=False,
         r2=None,
         theta2=None,
         lambda2=None,
         shift2=None,
         dual_center=False,
+        timo_type=False,
+        timo_contrast_div=False,
         surround=True,
         surround_control=False):
     if gilbert_mask:
@@ -87,7 +94,13 @@ def create_image(
         mask = rotate(mask, theta1, order=0, preserve_range=True)
         image = image * mask.astype(np.float32) * (1 - mask2 + mask1)
         patch_hw = np.where(mask1)
+        patch_hw[0][np.argmin(patch_hw[0])] -= 5
+        patch_hw[0][np.argmax(patch_hw[0])] += 5
+        patch_hw[1][np.argmin(patch_hw[1])] -= 5
+        patch_hw[1][np.argmax(patch_hw[1])] += 5
+
         patch = image[patch_hw[0].min(): patch_hw[0].max(), patch_hw[1].min(): patch_hw[1].max()]
+        oppo_patch = rotate(patch, -theta2, order=1, preserve_range=True)
         patch = rotate(patch, theta2, order=1, preserve_range=True)
         mask_hw = np.where(mask2)
         if gilbert_train:
@@ -95,12 +108,172 @@ def create_image(
             image[patch_hw[0].min(): patch_hw[0].max(), patch_hw[1].min(): patch_hw[1].max()] = patch
         else:
             # Now take out the center and move it to the surround
-            # image[mask_hw[0].max() - patch.shape[0]: mask_hw[0].max(), patch_hw[1].min(): patch_hw[1].max()] = patch
+
             # image[mask_hw[0].min(): mask_hw[0].min() + patch.shape[0], patch_hw[1].min(): patch_hw[1].max()] = patch
-            image[mask_hw[0].max() - patch.shape[0]: mask_hw[0].max(), patch_hw[1].min() - patch.shape[1] // 2: patch_hw[1].min() + patch.shape[1] // 2] = patch
-            image[mask_hw[0].min(): mask_hw[0].min() + patch.shape[0], patch_hw[1].max() - patch.shape[1] // 2: patch_hw[1].max() + patch.shape[1] // 2] = patch
+            if gilbert_offset:
+                # image[mask_hw[0].max() - patch.shape[0]: mask_hw[0].max(), patch_hw[1].min() - patch.shape[1] // 2: patch_hw[1].min() + patch.shape[1] // 2] = patch
+                # image[mask_hw[0].min(): mask_hw[0].min() + patch.shape[0], patch_hw[1].max() - patch.shape[1] // 2: patch_hw[1].max() + patch.shape[1] // 2] = patch
+                l = np.percentile(patch_hw[1], 90).astype(int)
+                image[mask_hw[0].max() - patch.shape[0]: mask_hw[0].max(), l - patch.shape[1] : l] = patch
+                l = np.percentile(patch_hw[1], 10).astype(int)
+                image[mask_hw[0].min(): mask_hw[0].min() + patch.shape[0], l: l + patch.shape[1]] = patch
+            elif gilbert_shift == 1:
+                l = np.percentile(patch_hw[1], 90).astype(int)
+                image[mask_hw[0].max() - patch.shape[0]: mask_hw[0].max(), l - patch.shape[1] : l] = patch
+                image[mask_hw[0].min(): mask_hw[0].min() + patch.shape[0], l - patch.shape[1]: l] = oppo_patch
+            elif gilbert_shift == -1:
+                l = np.percentile(patch_hw[1], 10).astype(int)
+                image[mask_hw[0].max() - patch.shape[0]: mask_hw[0].max(), l: l + patch.shape[1]] = patch
+
+                line_loc = np.where(image > 1e-4)
+                mid = np.median(line_loc[1]).astype(int)
+                lhs_l = int(mid - 1.2 * patch.shape[1])
+                lhs_r = int(mid + 0.2 * patch.shape[1]) 
+                # lhs_l = np.where(mask2)[1].min()
+                # lhs_r = image.shape[1] - lhs_l  # np.where(mask2)[1].max() + patch_hw[1].max()
+                image[patch_hw[0].min(): patch_hw[0].min() + patch.shape[0], lhs_l: lhs_l + patch.shape[1]] = patch
+                image[patch_hw[0].min(): patch_hw[0].min() + patch.shape[0], lhs_r: lhs_r + patch.shape[1]] = patch
+            else:
+                # Center the patch
+                lhs = patch_hw[1].min()  #  + (patch_hw[1].max() - patch_hw[1].min()) // 20
+                image[mask_hw[0].max() - patch.shape[0]: mask_hw[0].max(), lhs: lhs + patch.shape[1]] = patch
+                image[mask_hw[0].min(): mask_hw[0].min() + patch.shape[0], lhs: lhs + patch.shape[1]] = patch
+
+            if timo_contrast_div:
+                assert timo_contrast_div <= 1 and timo_contrast_div > 0, "gilbert_div must be 1<= and >0"
+                image[patch_hw[0].min(): patch_hw[0].max(), patch_hw[1].min(): patch_hw[1].max()] *= timo_contrast_div
+            if timo_type == "diagonal":
+                assert gilbert_offset
+                num_paddles = 3
+                l = np.percentile(patch_hw[1], 90).astype(int)
+                top_flanker = [
+                    mask_hw[0].max() - patch.shape[0],
+                    mask_hw[0].max(),
+                    l - patch.shape[1],
+                    l]
+                l = np.percentile(patch_hw[1], 10).astype(int)
+                bottom_flanker = [
+                    mask_hw[0].min(),
+                    mask_hw[0].min() + patch.shape[0],
+                    l,
+                    l + patch.shape[1]]
+                top_flanker = np.asarray(top_flanker)
+                bottom_flanker = np.asarray(bottom_flanker)
+                stride = 50
+                for paddle in range(num_paddles):
+                    top_flanker[:2] += stride
+                    top_flanker[2:] -= stride // 3
+                    bottom_flanker[:2] -= stride
+                    bottom_flanker[2:] += stride // 3
+                    image[top_flanker[0]: top_flanker[1], top_flanker[2]: top_flanker[3]] += patch
+                    image[bottom_flanker[0]: bottom_flanker[1], bottom_flanker[2]: bottom_flanker[3]] += patch
+                # plt.imshow(image)
+                # plt.show()
+            elif timo_type == "straight":
+                assert not gilbert_offset
+                num_paddles = 3
+                l = patch_hw[1].min()  #  + (patch_hw[1].max() - patch_hw[1].min()) // 20
+                top_flanker = [
+                    mask_hw[0].max() - patch.shape[0],
+                    mask_hw[0].max(),
+                    l,
+                    l + patch.shape[1]]
+                bottom_flanker = [
+                    mask_hw[0].min(),
+                    mask_hw[0].min() + patch.shape[0],
+                    l,
+                    l + patch.shape[1]]
+                top_flanker = np.asarray(top_flanker)
+                bottom_flanker = np.asarray(bottom_flanker)
+                stride = 50
+                for paddle in range(num_paddles):
+                    top_flanker[:2] += stride
+                    # top_flanker[2:] -= stride // 3
+                    bottom_flanker[:2] -= stride
+                    # bottom_flanker[2:] += stride // 3
+                    image[top_flanker[0]: top_flanker[1], top_flanker[2]: top_flanker[3]] += patch
+                    image[bottom_flanker[0]: bottom_flanker[1], bottom_flanker[2]: bottom_flanker[3]] += patch
+                # plt.imshow(image)
+                # plt.show()
+            elif timo_type == "zigzag":
+                assert not gilbert_offset
+                num_paddles = 4  # Should be + from straight
+                l = patch_hw[1].min()  #  + (patch_hw[1].max() - patch_hw[1].min()) // 20
+                top_flanker = [
+                    mask_hw[0].max() - patch.shape[0],
+                    mask_hw[0].max(),
+                    l,
+                    l + patch.shape[1]]
+                bottom_flanker = [
+                    mask_hw[0].min(),
+                    mask_hw[0].min() + patch.shape[0],
+                    l,
+                    l + patch.shape[1]]
+                top_flanker = np.asarray(top_flanker)
+                bottom_flanker = np.asarray(bottom_flanker)
+                stride = 50
+                for paddle in range(num_paddles):
+                    sign = ((paddle % 2) * 2) - 1
+                    it_patch = rotate(patch, -theta2 + (15 * sign), order=1, preserve_range=True)
+                    image[top_flanker[0]: top_flanker[1], top_flanker[2]: top_flanker[3]] = it_patch
+                    it_patch = rotate(patch, -theta2 + (-15 * sign), order=1, preserve_range=True)
+                    image[bottom_flanker[0]: bottom_flanker[1], bottom_flanker[2]: bottom_flanker[3]] = it_patch
+                    top_flanker[:2] += stride
+                    # top_flanker[2:] -= stride // 3
+                    bottom_flanker[:2] -= stride
+                    # bottom_flanker[2:] += stride // 3
+                # plt.imshow(image)
+                # plt.show()
+            elif timo_type == "spiral":
+                assert gilbert_offset
+                num_paddles = 4
+                l = np.percentile(patch_hw[1], 90).astype(int)
+                top_flanker = [
+                    mask_hw[0].max() - patch.shape[0],
+                    mask_hw[0].max(),
+                    l - patch.shape[1],
+                    l]
+                l = np.percentile(patch_hw[1], 10).astype(int)
+                bottom_flanker = [
+                    mask_hw[0].min(),
+                    mask_hw[0].min() + patch.shape[0],
+                    l,
+                    l + patch.shape[1]]
+                top_flanker = np.asarray(top_flanker)
+                bottom_flanker = np.asarray(bottom_flanker)
+                stride = 40
+                for paddle in range(num_paddles):
+                    image[top_flanker[0]: top_flanker[1], top_flanker[2]: top_flanker[3]] = patch
+                    image[bottom_flanker[0]: bottom_flanker[1], bottom_flanker[2]: bottom_flanker[3]] = patch
+                    if paddle > 1:
+                        top_flanker[:2] -= stride
+                        top_flanker[2:] -= stride
+                        bottom_flanker[:2] += stride
+                        bottom_flanker[2:] += stride
+                    else:
+                        top_flanker[:2] += stride
+                        top_flanker[2:] -= stride
+                        bottom_flanker[:2] -= stride
+                        bottom_flanker[2:] += stride
+
+                plt.imshow(image)
+                plt.show()
+            elif timo_type:
+                raise NotImplementedError(timo_type)
+            a = 2
+
     image += 1
     image *= 127.5
+    if gilbert_box:
+        # Draw a box around the r1-sized RF
+        boxr = int(r1 + image.shape[0] * 0.02)
+        center = image.shape[0] // 2
+        imm = image.max()
+        lw = 1
+        image[center - boxr : center - boxr + lw + lw, center - boxr: center + boxr] = imm
+        image[center + boxr - lw - lw: center + boxr, center - boxr: center + boxr] = imm
+        image[center - boxr: center + boxr, center - boxr: center - boxr + lw + lw] = imm
+        image[center - boxr: center + boxr, center + boxr - lw - lw: center + boxr] = imm
     return image
 
 
@@ -126,7 +299,7 @@ def save_metadata(metadata, contour_path, batch_id):
         pickle.dump(metadata, f, protocol=2)
 
 
-def from_wrapper(args, train=True, dual_centers=[90], control_stim=False, surround=True, include_null=False, surround_control=False, gilbert_mask=False, gilbert_train=False):  # -90, -60, -30, 0, 60]):
+def from_wrapper(args, train=True, dual_centers=[90], control_stim=False, surround=True, include_null=False, surround_control=False, gilbert_mask=False, gilbert_train=False, gilbert_offset=False, gilbert_repulse=False, gilbert_shift=False, flip_polarity=False, gilbert_box=False, timo_type=False, timo_contrast_div=False):
     import time
     import scipy
 
@@ -181,7 +354,7 @@ def from_wrapper(args, train=True, dual_centers=[90], control_stim=False, surrou
             img = create_image(
                 args.image_size,
                 r1, theta1, lmda, shift1,
-                r2=r2, theta2=theta2, lambda2=lmda, shift2=shift2, dual_center=dual_center, surround=surround, surround_control=surround_control, gilbert_mask=gilbert_mask, gilbert_train=gilbert_train)
+                r2=r2, theta2=theta2, lambda2=lmda, shift2=shift2, dual_center=dual_center, surround=surround, surround_control=surround_control, gilbert_mask=gilbert_mask, gilbert_train=gilbert_train, gilbert_offset=gilbert_offset, gilbert_repulse=gilbert_repulse, gilbert_shift=gilbert_shift, flip_polarity=flip_polarity, gilbert_box=gilbert_box, timo_type=timo_type, timo_contrast_div=timo_contrast_div)
 
             if (args.save_images):
                 imageio.imwrite(os.path.join(args.dataset_path, im_sub_path, im_fn), img)

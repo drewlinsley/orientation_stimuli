@@ -399,7 +399,7 @@ X = np.concatenate((
     model_data,), -1)
 clf = sm.OLS(y, X).fit()
 r2 = clf.rsquared
-print("TB Feature-selective center-only {} r^2: {}".format(file_name, r2))
+# print("TB Feature-selective center-only {} r^2: {}".format(file_name, r2))
 np.save(os.path.join(output_dir_center, "{}_surround_scores".format(file_name)), [r2, file_name])  # noqa
 
 # Fit to cat(c/c+s)
@@ -414,7 +414,7 @@ X = np.concatenate((
     model_data,), -1)
 clf = sm.OLS(y, X).fit()
 r2 = clf.rsquared
-print("TB Feature-selective surround-only {} r^2: {}".format(file_name, r2))
+# print("TB Feature-selective surround-only {} r^2: {}".format(file_name, r2))
 np.save(os.path.join(output_dir_surround, "{}_surround_scores".format(file_name)), [r2, file_name])  # noqa
 
 # Fit to cat(c/c+s)
@@ -432,22 +432,28 @@ X = np.concatenate((
     crf_ecrf,), -1)
 clf = sm.OLS(y, X).fit()
 r2 = clf.rsquared
-print("TB Feature-selective FULL {} r^2: {}".format(file_name, r2))
+# print("TB Feature-selective FULL {} r^2: {}".format(file_name, r2))
 np.save(os.path.join(output_dir_full, "{}_full_scores".format(file_name)), [r2, file_name])  # noqa
 
 # Fit to Diff
-model_data = ns - so
-experiments = np.arange(
-    surround_curve.shape[0] - 1).reshape(-1, 1).repeat(surround_curve.shape[0] - 1, -1).reshape(-1, 1)  # noqa
-y = gt_ns - gt_so
-bias = np.ones_like(model_data)
-X = np.concatenate((
-    bias,
-    model_data,), -1)
-clf = sm.OLS(y, X).fit()
-r2 = clf.rsquared
-print("TB Feature-selective diff {} r^2: {}".format(file_name, r2))
-np.save(os.path.join(output_dir_diff, "{}_full_scores".format(file_name)), [r2, file_name])  # noqa
+so = surround_curve[:-1, :-1].reshape(-1, 1)
+gt_so = ps_y[:, :-1].reshape(-1, 1)
+r2s = []
+inds = np.arange(6).repeat(6)
+for idx in np.arange(6):
+    it_mod = so[inds == idx]
+    it_gt = gt_so[inds == idx]
+    bias = np.ones_like(it_mod)
+    X = np.concatenate((
+        bias,
+        it_mod,), -1)
+    clf = sm.OLS(it_gt, X).fit()
+    r2 = clf.rsquared
+    r2s.append(r2)
+r2 = np.mean(r2s)
+diffs = -np.argmax(model_ps_fit[1]) + np.argmax(ps_fit[1]) + -np.argmax(model_ps_fit[2]) + np.argmax(ps_fit[2]) + np.argmax(model_ps_fit[4]) - np.argmax(ps_fit[4]) + np.argmax(model_ps_fit[5]) - np.argmax(ps_fit[5])
+print("TB Feature-selective diff {} r^2: {} diff {}".format(file_name, r2, diffs))
+np.save(os.path.join(output_dir_diff, "{}_full_scores".format(file_name)), [r2, diffs, file_name])  # noqa
 
 # Plot argdiff
 arg_neural_po = np.argmax(po_y, -1)

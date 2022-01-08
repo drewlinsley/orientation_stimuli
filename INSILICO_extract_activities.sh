@@ -1,7 +1,7 @@
 MODELS_DIR=linear_models
 MOMENTS_DIR=linear_moments
 OUTPUTS_DIR=model_outputs
-RESPONSE_DIR=responses/INSILICO_RES
+RESPONSE_DIR=../refactor_gammanet/INSILICO_data
 mkdir $MODELS_DIR
 mkdir $MOMENTS_DIR
 mkdir $OUTPUTS_DIR

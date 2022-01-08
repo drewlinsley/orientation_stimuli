@@ -57,7 +57,7 @@ for idx in range(nv):
 
 # no_surround = np.load('contrast_modulated_no_surround_outputs_data.npy')
 # no_surround = np.concatenate((no_surround, no_surround[0].reshape(1, -1)), 0)
-metas = np.load("responses/contrast_modulated_no_surround_outputs/1.npy", allow_pickle=True, encoding="latin1")  # noqa
+metas = np.load("contrast_modulated_no_surround/test/metadata/1.npy", allow_pickle=True, encoding="latin1")  # noqa
 metas = metas.reshape(-1, 14)
 # mask = (np.asarray(metas[:, 4]).astype(int) == -45)
 # metas = metas[mask]
@@ -296,6 +296,27 @@ X = np.concatenate((
 ), -1)
 clf = sm.OLS(y, X).fit()
 r2 = clf.rsquared
-print("BWC {} r^2: {}".format(file_name, r2))
+# print("BWC {} r^2: {}".format(file_name, r2))
 np.save(
     os.path.join(output_dir, "{}_scores".format(file_name)), [r2, file_name])
+
+# Per-panel states
+so = no_surround_stats.reshape(-1, 1)  # surround_curve[:-1, :-1].reshape(-1, 1)
+gt_so = y_paper_stats.reshape(-1, 1)  # ps_y[:, :-1].reshape(-1, 1)
+r2s = []
+inds = np.arange(25).repeat(12)
+for idx in np.arange(25):
+    it_mod = so[inds == idx]
+    it_gt = gt_so[inds == idx]
+    bias = np.ones_like(it_mod)
+    X = np.concatenate((
+        bias,
+        it_mod,), -1)
+    clf = sm.OLS(it_gt, X).fit()
+    r2 = clf.rsquared
+    r2s.append(r2)
+r2 = np.mean(r2s)
+print("BWC {} r^2: {}".format(file_name, r2))
+np.save(
+    os.path.join(output_dir, "{}_diff_scores".format(file_name)), [r2, file_name])
+

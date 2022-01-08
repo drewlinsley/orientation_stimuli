@@ -28,9 +28,9 @@ else:
 
 ## Parameters
 args.image_size = [500, 500]
-args.r1_range = [110, 111]  # [100, 120]
-args.r1_range = [150, 151]  # [100, 120]
-args.r1_range = [119, 120]  # [100, 120]
+# args.r1_range = [110, 111]  # [100, 120]
+# args.r1_range = [150, 151]  # [100, 120]
+# args.r1_range = [119, 120]  # [100, 120]
 # args.r1_range = [150, 151]  # [100, 120]
 
 
@@ -39,9 +39,9 @@ args.r1_range = [119, 120]  # [100, 120]
 # args.lambda_range = [30, 31]  # [30, 90]
 # args.lambda_range = [30, 31]  # [30, 90]
 # args.lambda_range = [40, 41]  # [30, 90]
-args.lambda_range = [44, 45]  # [30, 90]
-args.lambda_range = [40, 41]  # [30, 90]
-args.lambda_range = [60, 61]  # [30, 90]
+# args.lambda_range = [44, 45]  # [30, 90]
+# args.lambda_range = [40, 41]  # [30, 90]
+# args.lambda_range = [60, 61]  # [30, 90]
 
 
 # ALIGNED WITH TB2015
@@ -70,7 +70,7 @@ bc_stim.from_wrapper(args, train=train, dual_centers=dual_centers, surround=surr
 
 ################################# test
 dataset_subpath = 'test'
-args.r1_range = [args.r1_range[0]/2, args.r1_range[1]/2]
+args.r1_range = [args.r1_range[0]/4, args.r1_range[1]/4]  # Remember 500 -> 224 resize for the model
 args.dataset_path = os.path.join(dataset_root, dataset_subpath)
 bc_stim.from_wrapper(args, train=False, dual_centers=dual_centers, control_stim=control_stim, surround=surround)
 

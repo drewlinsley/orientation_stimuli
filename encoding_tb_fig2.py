@@ -108,7 +108,7 @@ for theta, x_, y_, par in zip(c2c1, xs, neural_surround, ps_par):
 po_fit = np.zeros((6, npoints))
 ps_fit = np.zeros((6, npoints))
 xx_rad = np.linspace(-np.pi, np.pi, npoints)
-xx_deg = xx_rad / sp.pi * 90.
+xx_deg = xx_rad / np.pi * 90.
 for idx, (theta, par, fit) in enumerate(zip(c2c1, po_par, po_fit)):
     fit[:] = pf(theta)(xx_deg, *par)
 for idx, (theta, par, fit) in enumerate(zip(c2c1, ps_par, ps_fit)):
@@ -128,8 +128,8 @@ thetas = {
 
 idxs = np.asarray([int(x) for x in thetas.keys()])[:-1]
 ranges = np.asarray([int(x) for x in thetas.values()])
-surround_curve = surround[:, idxs.astype(int)].T
-no_surround_curve = no_surround[:, idxs.astype(int)].T
+# surround_curve = surround[:, idxs.astype(int)].T
+# no_surround_curve = no_surround[:, idxs.astype(int)].T
 
 # Curve fits
 surround_curve = surround[:, idxs.astype(int)].T
@@ -362,22 +362,27 @@ X = np.concatenate((
     crf_ecrf,), -1)
 clf = sm.OLS(y, X).fit()
 r2 = clf.rsquared
-print("TB surround sup FULL {} r^2: {}".format(file_name, r2))
+# print("TB surround sup FULL {} r^2: {}".format(file_name, r2))
 np.save(os.path.join(output_dir_full, "{}_scores".format(file_name)), [r2, file_name])  # noqa
 
-# Fit to the difference between c/c+s
-model_data = ns - so
-y = gt_ns - gt_so
-experiments = np.arange(
-    surround_curve.shape[0]).reshape(-1, 1).repeat(surround_curve.shape[0], -1).reshape(-1, 1)  # noqa
-bias = np.ones_like(model_data)
-X = np.concatenate((
-    bias,
-    model_data,), -1)
-clf = sm.OLS(y, X).fit()
-r2 = clf.rsquared
+# Fit to Diff
+so = surround_curve[:, :-1].reshape(-1, 1)
+gt_so = neural_surround[:, :-1].reshape(-1, 1)
+r2s = []
+inds = np.arange(6).repeat(6)
+for idx in np.arange(6):
+    it_mod = so[inds == idx]
+    it_gt = gt_so[inds == idx]
+    bias = np.ones_like(it_mod)
+    X = np.concatenate((
+        bias,
+        it_mod,), -1)
+    clf = sm.OLS(it_gt, X).fit()
+    r2 = clf.rsquared
+    r2s.append(r2)
+r2 = np.mean(r2s)
 print("TB surround sup diff {} r^2: {}".format(file_name, r2))
-np.save(os.path.join(output_dir_diff, "{}_scores".format(file_name)), [r2, file_name])  # noqa
+np.save(os.path.join(output_dir_diff, "{}_full_scores".format(file_name)), [r2, file_name])  # noqa
 
 # Make a histogram of the c/c+s differences
 model_data = ns[np.arange(3, len(ns), 6)] - so[np.arange(3, len(ns), 6)]
