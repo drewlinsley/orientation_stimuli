@@ -42,21 +42,34 @@ file_dirs = [
     "results_tb_fig2_diff",
     "results_bwc_fig4a",
 ]
+# remap_models = {
+#     "simple_no_additive": "Normalization circuit",
+#     "simple": "Complete",
+#     "simple_crf": "CRF patch-trained",
+#     "simple_ecrf": "eCRF patch-trained",  # $\gamma$-net",
+#     "simple_ecrf_bigger": "2xeCRF patch-trained",  #  $\gamma$-net",
+#     "simple_no_nonnegative": "No non-negative constraint",
+#     "simple_ts_1": "Complete speeded",
+#     "horizontal": "H-connections",
+#     "horizontal_bigger": "Wide H-connections",
+#     "simple_no_additive_no_multiplicative": "+ and * lesion",  # noqa Remove this for now
+#     "simple_no_h": "TD-connections",
+#     "simple_untied": "Feedforward only",
+#     "simple_no_multiplicative": "Bias circuit"
+# }
 remap_models = {
-    "simple_no_additive": "Normalization circuit",
-    "simple": "Complete",
-    "simple_crf": "CRF patch-trained",
-    "simple_ecrf": "eCRF patch-trained",  # $\gamma$-net",
-    "simple_ecrf_bigger": "2xeCRF patch-trained",  #  $\gamma$-net",
-    "simple_no_nonnegative": "No non-negative constraint",
-    "simple_ts_1": "Complete speeded",
-    "horizontal": "H-connections",
-    "horizontal_bigger": "Wide H-connections",
-    "simple_no_additive_no_multiplicative": "+ and * lesion",  # noqa Remove this for now
-    "simple_no_h": "TD-connections",
-    "simple_untied": "Feedforward only",
-    "simple_no_multiplicative": "Bias circuit"
+    "additiveonly": "Additive only",
+    "ecrf": "eCRF patch-trained",
+    "ae_bce": "AE-BCE",
+    "ae_l2": "AE-L2",  # $\gamma$-net",
+    "crf": "CRF patch-trained",  #  $\gamma$-net",
+    "ffonly": "FF-connections only",
+    "tdonly": "TD-connections only",
+    "honly": "H-connections only",
+    "multiplicativeonly": "Multiplicative only",
+    "": "Complete",  # noqa Remove this for now
 }
+
 remap_experiments = {
     # "results_orientation_tuning": "Orientation decoding",
     # "results_tb_fig4b_center": "T&B 2015: CRF tuning",
@@ -103,7 +116,8 @@ for d in file_dirs:
     files = glob(os.path.join(d, "*.npy"))
     for f in files:
         i = np.load(f)
-        name = i[1].replace("INSILICO_BSDS_vgg_gratings_", "")
+        # name = i[1].replace("INSILICO_BSDS_vgg_gratings_", "")
+        name = i[-1].split("bsds_")[1].split("_model")[0]
         if name in set(remap_models.keys()):
             data.append(float(i[0]))
             models.append(name)
@@ -119,14 +133,15 @@ df = pd.DataFrame(
     np.stack((data, models, experiments), -1),
     columns=["data", "models", "experiments"])
 
-# Concat extra data
-df = pd.concat((df, bsds_data), 0)
+# # Concat extra data
+# df = pd.concat((df, bsds_data), 0)
 
 # Remove any models we dont need
 for m in remove_models:
     df = df[df.models != m]
 
 # Transform long -> wide
+import pdb;pdb.set_trace()
 wdf = df.pivot(index="experiments", columns="models", values="data")
 wdf = wdf.reset_index()
 wdf_all = wdf.reset_index().values

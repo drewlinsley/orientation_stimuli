@@ -54,7 +54,18 @@ def create_image(
         dual_center=False,
         timo_type=False,
         timo_contrast_div=False,
+        timo_surround_contrast_div=False,
+        stride=50,
+        offset=20,
         surround=True,
+        mask_center=False,
+        t_surround=False,
+        flanker_offset=0,
+        middle_mask_size=1.75,  # Was 1.5
+        roll_surround=False,
+        image_rotate=False,
+        both_flankers=False,
+        kapadia_contrast=[0.2, 0.6],
         surround_control=False):
     if gilbert_mask:
         shift1, shift2 = 350,350
@@ -81,25 +92,31 @@ def create_image(
     image = image*(1-mask1) + sin1*(mask1)
     if r2 is not None:
         # Middle_mask
-        middle_mask = create_annuli_mask(r1 * 1.5, imsize)
+        middle_mask = create_annuli_mask(r1 * middle_mask_size, imsize)
         if not surround_control:
             middle_mask = middle_mask - mask1
         image[middle_mask > 0] = 0
     if gilbert_mask and r2 is not None:
         # Mask the image
         mask = np.copy(image)
-        mask[:, :246] = -1000
-        mask[:, 253:] = -1000
+        mask[:, :245] = -1000
+        mask[:, 255:] = -1000
+        # mask[:, :249] = -1000
+        # mask[:, 252:] = -1000
+        mask[:235] = -1000
+        mask[265:] = -1000
         mask = mask != -1000
         mask = rotate(mask, theta1, order=0, preserve_range=True)
         image = image * mask.astype(np.float32) * (1 - mask2 + mask1)
+        image[image > 0] = 1.
         patch_hw = np.where(mask1)
-        patch_hw[0][np.argmin(patch_hw[0])] -= 5
-        patch_hw[0][np.argmax(patch_hw[0])] += 5
-        patch_hw[1][np.argmin(patch_hw[1])] -= 5
-        patch_hw[1][np.argmax(patch_hw[1])] += 5
+        # patch_hw[0][np.argmin(patch_hw[0])] -= 5
+        # patch_hw[0][np.argmax(patch_hw[0])] += 5
+        # patch_hw[1][np.argmin(patch_hw[1])] -= 5
+        # patch_hw[1][np.argmax(patch_hw[1])] += 5
 
         patch = image[patch_hw[0].min(): patch_hw[0].max(), patch_hw[1].min(): patch_hw[1].max()]
+        og_patch = patch.copy()
         oppo_patch = rotate(patch, -theta2, order=1, preserve_range=True)
         patch = rotate(patch, theta2, order=1, preserve_range=True)
         mask_hw = np.where(mask2)
@@ -136,12 +153,37 @@ def create_image(
             else:
                 # Center the patch
                 lhs = patch_hw[1].min()  #  + (patch_hw[1].max() - patch_hw[1].min()) // 20
-                image[mask_hw[0].max() - patch.shape[0]: mask_hw[0].max(), lhs: lhs + patch.shape[1]] = patch
-                image[mask_hw[0].min(): mask_hw[0].min() + patch.shape[0], lhs: lhs + patch.shape[1]] = patch
+
+                if t_surround:
+                    import pdb;pdb.set_trace()
+                    patch = np.maximum(np.roll(patch, -len(patch) // 4, axis=0), rotate(patch, theta2, order=1, preserve_range=True))
+                if roll_surround:
+                    patch = np.roll(patch, -len(patch) // roll_surround, axis=0)
+                if flanker_offset:
+                    image[mask_hw[0].max() - patch.shape[0] + flanker_offset: mask_hw[0].max() + flanker_offset, lhs: lhs + patch.shape[1]] = patch  # [flanker_offset:-flanker_offset, flanker_offset:-flanker_offset]
+                else:
+                    image[mask_hw[0].max() - patch.shape[0]: mask_hw[0].max(), lhs: lhs + patch.shape[1]] = patch
+                if both_flankers:
+                    # Line below adds a flanker to the top -- not needed for Kapadia 95. Needed for Kinoshita 2008.
+                    if flanker_offset:
+                        image[mask_hw[0].min() - flanker_offset: mask_hw[0].min() + patch.shape[0] - flanker_offset, lhs: lhs + patch.shape[1]] = patch
+                    else:
+                        image[mask_hw[0].min(): mask_hw[0].min() + patch.shape[0], lhs: lhs + patch.shape[1]] = patch
 
             if timo_contrast_div:
                 assert timo_contrast_div <= 1 and timo_contrast_div > 0, "gilbert_div must be 1<= and >0"
                 image[patch_hw[0].min(): patch_hw[0].max(), patch_hw[1].min(): patch_hw[1].max()] *= timo_contrast_div
+            if timo_surround_contrast_div:
+                assert timo_surround_contrast_div <= 1 and timo_surround_contrast_div > 0, "gilbert_surround_div must be 1<= and >0"
+                # vmin = image.min()
+                # vmax = image.max()
+                # from matplotlib import pyplot as plt;plt.imshow(image, vmin=vmin, vmax=vmax);plt.show()
+                image[:patch_hw[0].min(), :] *= timo_surround_contrast_div
+                image[:, patch_hw[1].max():] *= timo_surround_contrast_div
+                image[patch_hw[0].max():, :] *= timo_surround_contrast_div
+                image[:, :patch_hw[1].min()] *= timo_surround_contrast_div
+                # from matplotlib import pyplot as plt;plt.imshow(image, vmin=vmin, vmax=vmax);plt.show()
+
             if timo_type == "diagonal":
                 assert gilbert_offset
                 num_paddles = 3
@@ -171,7 +213,7 @@ def create_image(
                 # plt.show()
             elif timo_type == "straight":
                 assert not gilbert_offset
-                num_paddles = 3
+                num_paddles = 2  # Should be + from straight
                 l = patch_hw[1].min()  #  + (patch_hw[1].max() - patch_hw[1].min()) // 20
                 top_flanker = [
                     mask_hw[0].max() - patch.shape[0],
@@ -185,19 +227,30 @@ def create_image(
                     l + patch.shape[1]]
                 top_flanker = np.asarray(top_flanker)
                 bottom_flanker = np.asarray(bottom_flanker)
-                stride = 50
+
+                # Kill previous ecrfs
+                image[:, :patch_hw[1].min()] = 0
+                image[:, patch_hw[1].max():] = 0
+                image[:patch_hw[0].min():, :] = 0
+                image[patch_hw[0].max():, :] = 0
+
+                # Add rotated patch
+                image[patch_hw[0].min():patch_hw[0].max(), patch_hw[1].min(): patch_hw[1].max()] = patch * timo_contrast_div
                 for paddle in range(num_paddles):
+                    sign = ((paddle % 2) * 2) - 1
+                    it_patch = og_patch
+                    image[top_flanker[0]: top_flanker[1], top_flanker[2] - offset: top_flanker[3] - offset] = it_patch
+                    it_patch = og_patch
+                    image[bottom_flanker[0]: bottom_flanker[1], bottom_flanker[2] + offset: bottom_flanker[3] + offset] = it_patch
                     top_flanker[:2] += stride
                     # top_flanker[2:] -= stride // 3
                     bottom_flanker[:2] -= stride
                     # bottom_flanker[2:] += stride // 3
-                    image[top_flanker[0]: top_flanker[1], top_flanker[2]: top_flanker[3]] += patch
-                    image[bottom_flanker[0]: bottom_flanker[1], bottom_flanker[2]: bottom_flanker[3]] += patch
                 # plt.imshow(image)
                 # plt.show()
             elif timo_type == "zigzag":
                 assert not gilbert_offset
-                num_paddles = 4  # Should be + from straight
+                num_paddles = 2  # Should be + from straight
                 l = patch_hw[1].min()  #  + (patch_hw[1].max() - patch_hw[1].min()) // 20
                 top_flanker = [
                     mask_hw[0].max() - patch.shape[0],
@@ -211,13 +264,21 @@ def create_image(
                     l + patch.shape[1]]
                 top_flanker = np.asarray(top_flanker)
                 bottom_flanker = np.asarray(bottom_flanker)
-                stride = 50
+
+                # Kill previous ecrfs
+                image[:, :patch_hw[1].min()] = 0
+                image[:, patch_hw[1].max():] = 0
+                image[:patch_hw[0].min():, :] = 0
+                image[patch_hw[0].max():, :] = 0
+
+                # Add rotated patch
+                image[patch_hw[0].min():patch_hw[0].max(), patch_hw[1].min(): patch_hw[1].max()] = patch * timo_contrast_div 
                 for paddle in range(num_paddles):
                     sign = ((paddle % 2) * 2) - 1
                     it_patch = rotate(patch, -theta2 + (15 * sign), order=1, preserve_range=True)
-                    image[top_flanker[0]: top_flanker[1], top_flanker[2]: top_flanker[3]] = it_patch
-                    it_patch = rotate(patch, -theta2 + (-15 * sign), order=1, preserve_range=True)
-                    image[bottom_flanker[0]: bottom_flanker[1], bottom_flanker[2]: bottom_flanker[3]] = it_patch
+                    image[top_flanker[0]: top_flanker[1], top_flanker[2] - offset: top_flanker[3] - offset] = it_patch
+                    it_patch = rotate(patch, -theta2 + (15 * sign), order=1, preserve_range=True)
+                    image[bottom_flanker[0]: bottom_flanker[1], bottom_flanker[2] + offset: bottom_flanker[3] + offset] = it_patch
                     top_flanker[:2] += stride
                     # top_flanker[2:] -= stride // 3
                     bottom_flanker[:2] -= stride
@@ -260,13 +321,38 @@ def create_image(
                 plt.show()
             elif timo_type:
                 raise NotImplementedError(timo_type)
-            a = 2
+        # Now set all small values to 0 and big values to 1
+        image = (image > 0.5).astype(image.dtype)
 
+        if mask_center:
+            image = image * (1 - mask)
+
+        if image_rotate:
+            image = (rotate(image, image_rotate, order=1, preserve_range=True) > .0).astype(np.float32)
+            mask = (rotate(mask, image_rotate, order=1, preserve_range=True) > .0).astype(np.float32)
+
+        # Adjust contrasts for kapadia 95
+        if gilbert_train:
+            mask = (rotate(mask, theta2, order=1, preserve_range=True) > 0).astype(mask.dtype)
+        # mask = rotate(mask, theta2, order=0, preserve_range=True) 
+        kapadia_center_contrast, kapadia_surround_contrast = kapadia_contrast
+        image[mask == 1] *= kapadia_center_contrast  # 0.2
+        image[mask != 1] *= kapadia_surround_contrast  # 0.6
+
+    else:
+        # Still offer the opportunity to change contrasts
+        if timo_contrast_div < 1. and timo_type:
+            assert timo_contrast_div <= 1 and timo_contrast_div > 0, "gilbert_div must be 1<= and >0"
+            patch_hw = np.where(mask1)
+            h_min, h_max = patch_hw[0].min() - 10, patch_hw[0].max() + 10
+            w_min, w_max = patch_hw[1].min() - 10, patch_hw[1].max() + 10
+            image[patch_hw[0].min(): patch_hw[0].max(), patch_hw[1].min(): patch_hw[1].max()] *= timo_contrast_div
     image += 1
     image *= 127.5
     if gilbert_box:
         # Draw a box around the r1-sized RF
-        boxr = int(r1 + image.shape[0] * 0.02)
+        # boxr = int(r1 + image.shape[0] * 0.02)
+        boxr = int(r1 - image.shape[0] * 0.0)
         center = image.shape[0] // 2
         imm = image.max()
         lw = 1
@@ -299,7 +385,7 @@ def save_metadata(metadata, contour_path, batch_id):
         pickle.dump(metadata, f, protocol=2)
 
 
-def from_wrapper(args, train=True, dual_centers=[90], control_stim=False, surround=True, include_null=False, surround_control=False, gilbert_mask=False, gilbert_train=False, gilbert_offset=False, gilbert_repulse=False, gilbert_shift=False, flip_polarity=False, gilbert_box=False, timo_type=False, timo_contrast_div=False):
+def from_wrapper(args, train=True, dual_centers=[90], control_stim=False, surround=True, include_null=False, surround_control=False, gilbert_mask=False, gilbert_train=False, gilbert_offset=False, gilbert_repulse=False, gilbert_shift=False, flip_polarity=False, gilbert_box=False, timo_type=False, timo_contrast_div=False, timo_surround_contrast_div=False, stride=50, offset=20, mask_center=False, t_surround=False, roll_surround=False, kapadia_contrast=[[0.2, 0.6]], image_rotate=False, both_flankers=False):
     import time
     import scipy
 
@@ -321,20 +407,29 @@ def from_wrapper(args, train=True, dual_centers=[90], control_stim=False, surrou
 
     r1_range = np.arange(args.r1_range[0], args.r1_range[1])
     lambda_range = np.arange(args.lambda_range[0], args.lambda_range[1])
-    theta1_range = np.arange(args.theta1_range[0], args.theta1_range[1])
-    theta2_range = np.arange(args.theta2_range[0], args.theta2_range[1])
-    combos = [[i, j, k] for i in r1_range 
+    theta1_range = np.arange(*args.theta1_range)  # args.theta1_range[0], args.theta1_range[1])
+    theta2_range = np.arange(*args.theta2_range)  # args.theta2_range[0], args.theta2_range[1])
+    flanker_offset_range = np.arange(*args.flanker_offset_range)
+    if image_rotate:
+        image_rotate_range = np.arange(*image_rotate)
+    else:
+        image_rotate_range = [False]
+    combos = [[i, j, k, l, m, n] for i in r1_range 
                  for j in lambda_range 
-                 for k in theta1_range]
+                 for k in theta1_range
+                 for l in flanker_offset_range
+                 for m in kapadia_contrast
+                 for n in image_rotate_range]
     for iimg, combo in tqdm(enumerate(combos), total=len(combos), desc="Building dataset"):
         t = time.time()
 
         # Correct label names
-        iimg = 180 - iimg
+        if len(kapadia_contrast) == 1:
+            iimg = 180 - iimg
         im_fn = "sample_%s.png" % (iimg)
 
         ##### SAMPLE IMAGE PARAMETERS
-        r1, lmda, theta1 = combo
+        r1, lmda, theta1, flanker_offset, kapadia_contrast, image_rotate = combo
         theta2 = theta1
         shift1 = 180  # 180
         if train:
@@ -354,7 +449,7 @@ def from_wrapper(args, train=True, dual_centers=[90], control_stim=False, surrou
             img = create_image(
                 args.image_size,
                 r1, theta1, lmda, shift1,
-                r2=r2, theta2=theta2, lambda2=lmda, shift2=shift2, dual_center=dual_center, surround=surround, surround_control=surround_control, gilbert_mask=gilbert_mask, gilbert_train=gilbert_train, gilbert_offset=gilbert_offset, gilbert_repulse=gilbert_repulse, gilbert_shift=gilbert_shift, flip_polarity=flip_polarity, gilbert_box=gilbert_box, timo_type=timo_type, timo_contrast_div=timo_contrast_div)
+                r2=r2, theta2=theta2, lambda2=lmda, shift2=shift2, dual_center=dual_center, surround=surround, surround_control=surround_control, gilbert_mask=gilbert_mask, gilbert_train=gilbert_train, gilbert_offset=gilbert_offset, gilbert_repulse=gilbert_repulse, gilbert_shift=gilbert_shift, flip_polarity=flip_polarity, gilbert_box=gilbert_box, timo_type=timo_type, timo_contrast_div=timo_contrast_div, timo_surround_contrast_div=timo_surround_contrast_div, stride=stride, offset=offset, flanker_offset=flanker_offset, mask_center=mask_center,t_surround=t_surround, roll_surround=roll_surround, kapadia_contrast=kapadia_contrast, image_rotate=image_rotate, both_flankers=both_flankers)
 
             if (args.save_images):
                 imageio.imwrite(os.path.join(args.dataset_path, im_sub_path, im_fn), img)

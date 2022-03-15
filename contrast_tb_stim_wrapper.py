@@ -22,20 +22,21 @@ contrast = float(sys.argv[5])
 ## Parameters
 args.image_size = [500, 500]
 # args.r1_range = [110, 111]  # [100, 120]
-args.r1_range = [119, 120]  # [100, 120]
+# args.r1_range = [119, 120]  # [100, 120]
 # args.r1_range = [150, 151]  # [100, 120]
 
 # args.r1_range = [80, 81]  # [100, 120]
 # args.lambda_range = [30, 31]  # [30, 90]
 # args.lambda_range = [40, 41]  # [30, 90]
-args.lambda_range = [44, 45]  # [30, 90]
-args.lambda_range = [40, 41]  # [30, 90]
-args.lambda_range = [60, 61]  # [30, 90]
+# args.lambda_range = [44, 45]  # [30, 90]
+# args.lambda_range = [40, 41]  # [30, 90]
+# args.lambda_range = [60, 61]  # [30, 90]
 
 # ALIGNED WITH TB2015
 args.r1_range = [31 * 3, (31 * 3) + 1]  # [100, 120]
 # args.lambda_range = [15, 16]  # [30, 90]
-args.lambda_range = [22, 23]  # [30, 90]
+# args.lambda_range = [22, 23]  # [30, 90]
+args.lambda_range = [16, 17]  # [30, 90]
 
 # args.theta1_range = [22.5, 67.5]  # H/TD
 # args.theta2_range = [22.5, 67.5]  # H/TD

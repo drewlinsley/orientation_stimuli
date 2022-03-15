@@ -35,8 +35,8 @@ def main(
         feature_select=1.,
         cross_validate=False):
     """Create and test IEM models."""
-    normalize = False
-    # debug = True
+    normalize = True  # True
+    # debug = False
     # Find and load paths
     paths = glob(os.path.join(file_name, "*.npz"))
     try:
@@ -87,7 +87,10 @@ def main(
     for d in out_data_arr:
         if save_images:
             images.append(d["images"].squeeze())
-        responses.append(d[extract_key].squeeze(0)[units])  # noqa Pre cos/sin 1x1 conv
+        res = d[extract_key].squeeze(0).reshape(-1, 128).mean(0)  # [units]
+        # res = np.maximum(res, 0)
+        # res = np.maximum(res, 0).reshape(-1, 16).mean(-1).reshape(1, -1)
+        responses.append(res)  # noqa Pre cos/sin 1x1 conv
     responses = np.asarray(responses)
     if save_images:
         os.makedirs("images_model_outputs", exist_ok=True)
@@ -136,12 +139,13 @@ def main(
             indicator_matrix = np.zeros((180, channels))
             for iChannel, mu in enumerate(prefOrientation):
                 basis = (np.cos(np.pi * (orientations - mu) / 180))
-                # basis[basis < 0] = 0
+                # basis = (basis - basis.min()) / (basis.max() - basis.min())
                 basis = basis ** exponent
                 indicator_matrix[:, iChannel] = basis
             if np.any(indicator_matrix < 0):
                 print("Warning: negative values in the idealized curves. Applying abs.")  # noqa
                 indicator_matrix = np.abs(indicator_matrix)
+                # indicator_matrix = indicator_matrix ** 2
             indicator_matrix_plot = indicator_matrix
         else:
             raise NotImplementedError(basis_function)
@@ -171,10 +175,12 @@ def main(
         # print("Keeping {} features".format(len(idx)))
 
         # Compute moments
-        means = responses.mean()
-        stds = responses.std() + 1e-12
-        # means = responses.min()
-        # stds = responses.max()
+        # means = responses.mean(1)
+        # stds = responses.std(1) + 1e-12
+        # mask = responses.sum(1) == 0
+        means = 0  #  Relu in the model hence this is the true min.
+        stds = (responses.max() - means)  # 1, keepdims=True) - responses.min(1, keepdims=True))
+        # stds[mask] = 1  # 
         if normalize:
             responses = (responses - means) / stds
 
@@ -195,6 +201,7 @@ def main(
 
         # Transpose to match Serences
         print("Matrix rank: {}, matrix shape: {}".format(np.linalg.matrix_rank(indicator_matrix), indicator_matrix.shape[1]))  # noqa
+
         responses = responses.T  # voxels X trials
         indicator_matrix = indicator_matrix.T  # channels X trials
         # clf = responses @ indicator_matrix.T @ inv(indicator_matrix @ indicator_matrix.T)  # noqa
@@ -223,12 +230,15 @@ def main(
             plt.imshow(inv(clf) @ responses)  # inv(indicator_matrix @ indicator_matrix.T))
             plt.show()
             plt.close(f)
+            print("min/max inverse {} {}".format((inv(clf) @ responses).min(), (inv(clf) @ responses).max()))
+            print("min/max indicator_matrix {} {}".format(indicator_matrix_plot.T.min(), indicator_matrix_plot.T.max()))
+            print("min/max responses {} {}".format(responses.min(), responses.max()))
 
     else:
         moments = np.load(train_moments)
         means = moments['means']
         stds = moments['stds']
-        idx = moments['idx']
+        # idx = moments['idx']
         if "orientation_probe_no_surround_outputs" in model_output or "orientation_probe_outputs" in model_output:  # noqa
             if include_null:
                 null_npzs = glob(os.path.join(null_npz, "*.npz"))
@@ -240,7 +250,7 @@ def main(
                 responses = np.concatenate((null_response, responses))
             else:
                 responses = np.concatenate((responses[0].reshape(1, -1), responses))  # noqa
-        responses = responses[:, idx]
+        # responses = responses[:, idx]
         clf = load(model_file)
         if normalize:
             responses = (responses - means) / stds
@@ -255,13 +265,13 @@ def main(
             f = plt.figure()
             plt.subplot(144)
             plt.title('Y')
-            plt.imshow(responses.T)
+            plt.imshow(responses.T, aspect="auto")
             plt.subplot(142)
             plt.title('Parameters')
-            plt.imshow(clf)
+            plt.imshow(clf, aspect="auto")
             plt.subplot(143)
             plt.title('inverse')
-            plt.imshow(predictions)  # inv(indicator_matrix @ indicator_matrix.T))
+            plt.imshow(predictions, aspect="auto")  # inv(indicator_matrix @ indicator_matrix.T))
             plt.show()
             plt.close(f)
 
@@ -299,7 +309,7 @@ if __name__ == '__main__':
         "--extract_key",
         type=str,
         dest="extract_key",
-        default="l23",
+        default="l23",  # "conv2_2",  # "l23",
         # default="prepre_ephys",
         help="Model extraction key.")
     parser.add_argument(

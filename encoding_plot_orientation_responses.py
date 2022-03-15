@@ -79,9 +79,10 @@ for idx, (theta, label) in enumerate(thetas.items()):
         pass
     plt.ylim([-0.1, 1.1])
 if file_name is not None:
-    plt.savefig(os.path.join(output_dir, "{}_surround.pdf".format(file_name)))
+    plt.savefig(os.path.join(output_dir, "{}_center_only.pdf".format(file_name)))
 else:
     plt.show()
+plt.show()
 plt.close(f)
 
 # Surround
@@ -116,9 +117,10 @@ for idx, (theta, label) in enumerate(thetas.items()):
         pass
     plt.ylim([-0.1, 1.1])
 if file_name is not None:
-    plt.savefig(os.path.join(output_dir, "{}_no_surround.pdf".format(file_name)))  # noqa
+    plt.savefig(os.path.join(output_dir, "{}_center_surround.pdf".format(file_name)))  # noqa
 else:
     plt.show()
+plt.show()
 plt.close(f)
 
 # Surround-control
@@ -153,7 +155,7 @@ for idx, (theta, label) in enumerate(thetas.items()):
         pass
     plt.ylim([-0.1, 1.1])
 if file_name is not None:
-    plt.savefig(os.path.join(output_dir, "{}_modulation.pdf".format(file_name)))  # noqa
+    plt.savefig(os.path.join(output_dir, "{}_surround_only.pdf".format(file_name)))  # noqa
 else:
     plt.show()
 plt.close(f)

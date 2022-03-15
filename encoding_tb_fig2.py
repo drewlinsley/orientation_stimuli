@@ -339,6 +339,7 @@ if file_name is not None:
     plt.savefig(os.path.join(output_dir_full, "{}_model.pdf".format(file_name)))
 else:
     plt.show()
+plt.show()
 plt.close(f)
 
 # # Stats
@@ -346,6 +347,52 @@ ns = no_surround_curve[3, :-1].reshape(-1, 1).T.repeat(6, axis=0).reshape(-1, 1)
 so = surround_curve[:, :-1].reshape(-1, 1)
 gt_ns = neural_no_surround[3, :-1].reshape(-1, 1).T.repeat(6, axis=0).reshape(-1, 1)
 gt_so = neural_surround[:, :-1].reshape(-1, 1)
+
+# Get the difference between args of the model fits
+arg_diff_no_surround = [90] * 6  # This is fixed # np.argmax(model_po_fit[:-1], -1)
+arg_diff_surround = np.argmax(model_ps_fit, -1)
+arg_diff = arg_diff_no_surround - arg_diff_surround
+# Get the difference between magnitude of the args
+arg_mags_no_surround = np.asarray([x[y] for x, y in zip(model_po_fit, arg_diff_no_surround)])
+arg_mags_surround = np.asarray([x[y] for x, y in zip(model_ps_fit, arg_diff_surround)])
+arg_mags = arg_mags_no_surround - arg_mags_surround
+# Concat diffs and mags into array for linear model
+# diffs = np.concatenate((arg_diff_no_surround, arg_diff_surround), 0)
+# mags = np.concatenate((arg_mags_no_surround, arg_mags_surround), 0)
+# X = np.stack((diffs, mags), -1).reshape(-1, 1)
+# X = np.stack((arg_diff, arg_mags), -1).reshape(-1, 1)
+X = arg_mags.reshape(-1, 1)
+X = np.concatenate((np.ones((len(X), 1)), X), -1)
+
+# Do the same for gt data
+gt_arg_diff_no_surround = np.argmax(po_fit, -1)
+gt_arg_diff_surround = np.argmax(ps_fit, -1)
+gt_arg_diff = gt_arg_diff_no_surround - gt_arg_diff_surround
+gt_arg_mags_no_surround = np.asarray([x[y] for x, y in zip(po_fit, gt_arg_diff_no_surround)])
+gt_arg_mags_surround = np.asarray([x[y] for x, y in zip(ps_fit, gt_arg_diff_surround)])
+gt_arg_mags = gt_arg_mags_no_surround - gt_arg_mags_surround
+# diffs = np.concatenate((gt_arg_diff_no_surround, gt_arg_diff_surround), 0)
+# mags = np.concatenate((gt_arg_mags_no_surround, gt_arg_mags_surround), 0)
+# y = np.stack((diffs, mags), -1).reshape(-1, 1)
+# y = np.stack((arg_diff, arg_mags), -1).reshape(-1, 1)
+y = arg_mags.reshape(-1, 1)
+
+# Fit model
+clf = sm.OLS(y, X).fit()
+r2 = clf.rsquared
+# THIS IS THE DEFAULT SCORE
+# print("Arg score {}".format(r2))
+np.save(os.path.join(output_dir_full, "{}_full_scores".format(file_name)), [r2, file_name])  # noqa
+
+# compare full curve fits
+y = np.concatenate((po_fit.ravel(), ps_fit.ravel()), 0)
+X = np.concatenate((model_po_fit.ravel(), model_ps_fit.ravel()), 0)
+X = np.stack((np.ones((len(X))), X), -1)
+clf = sm.OLS(y, X).fit()
+r2 = clf.rsquared
+# THIS IS THE DEFAULT SCORE
+print("Default score: {}".format(r2))
+np.save(os.path.join(output_dir_full, "{}_full_scores".format(file_name)), [r2, file_name])  # noqa
 
 # Fit to cat(c/c+s)
 model_data = np.concatenate((ns, so), 0)
@@ -381,7 +428,7 @@ for idx in np.arange(6):
     r2 = clf.rsquared
     r2s.append(r2)
 r2 = np.mean(r2s)
-print("TB surround sup diff {} r^2: {}".format(file_name, r2))
+# print("TB surround sup diff {} r^2: {}".format(file_name, r2))
 np.save(os.path.join(output_dir_diff, "{}_full_scores".format(file_name)), [r2, file_name])  # noqa
 
 # Make a histogram of the c/c+s differences

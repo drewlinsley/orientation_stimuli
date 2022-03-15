@@ -157,7 +157,7 @@ ranges = np.asarray([int(x) for x in thetas.values()])
 # Curve fits
 surround_curve = surround[:, idxs.astype(int)].T
 no_surround_curve = no_surround[:, idxs.astype(int)].T
-i_nodiff = 5
+# i_nodiff = 5
 xs = ranges.reshape(1, -1).repeat(len(surround_curve), 0).astype(float)
 _, _, kappa = curve_fit(R_0, xdata=xs[i_nodiff].ravel(), ydata=no_surround_curve[i_nodiff].ravel(), maxfev=10**9)[0]  # noqa
 po_par = np.zeros((len(surround_curve), 3))
@@ -378,9 +378,54 @@ if file_name is not None:
     plt.savefig(os.path.join(output_dir_full, "{}_model.pdf".format(file_name)))  # noqa
 else:
     plt.show()
+plt.show()
 plt.close(f)
 
 # # Stats
+# Get the difference between args of the model fits
+arg_diff_no_surround = np.argmax(model_po_fit[:-1], -1)
+arg_diff_surround = np.argmax(model_ps_fit[:-1], -1)
+arg_diff = arg_diff_no_surround - arg_diff_surround
+# Get the difference between magnitude of the args
+arg_mags_no_surround = np.asarray([x[y] for x, y in zip(model_po_fit[:-1], arg_diff_no_surround)])
+arg_mags_surround = np.asarray([x[y] for x, y in zip(model_ps_fit[:-1], arg_diff_surround)])
+arg_mags = arg_mags_no_surround - arg_mags_surround
+# Concat diffs and mags into array for linear model
+# diffs = np.concatenate((arg_diff_no_surround, arg_diff_surround), 0)
+# mags = np.concatenate((arg_mags_no_surround, arg_mags_surround), 0)
+# X = np.stack((diffs, mags), -1).reshape(-1, 1)
+X = np.stack((arg_diff, arg_mags), -1).reshape(-1, 1)
+X = np.concatenate((np.ones((len(X), 1)), X), -1)
+
+# Do the same for gt data
+gt_arg_diff_no_surround = np.argmax(po_fit, -1)
+gt_arg_diff_surround = np.argmax(ps_fit, -1)
+gt_arg_diff = gt_arg_diff_no_surround - gt_arg_diff_surround
+gt_arg_mags_no_surround = np.asarray([x[y] for x, y in zip(po_fit, gt_arg_diff_no_surround)])
+gt_arg_mags_surround = np.asarray([x[y] for x, y in zip(ps_fit, gt_arg_diff_surround)])
+gt_arg_mags = gt_arg_mags_no_surround - gt_arg_mags_surround
+# diffs = np.concatenate((gt_arg_diff_no_surround, gt_arg_diff_surround), 0)
+# mags = np.concatenate((gt_arg_mags_no_surround, gt_arg_mags_surround), 0)
+# y = np.stack((diffs, mags), -1).reshape(-1, 1)
+y = np.stack((arg_diff, arg_mags), -1).reshape(-1, 1)
+
+# Fit model
+clf = sm.OLS(y, X).fit()
+r2 = clf.rsquared
+# THIS IS THE DEFAULT SCORE
+# print("Arg score: {}".format(r2))
+# np.save(os.path.join(output_dir_full, "{}_full_scores".format(file_name)), [r2, file_name])  # noqa
+
+# compare full curve fits
+y = np.concatenate((po_fit.ravel(), ps_fit.ravel()), 0)
+X = np.concatenate((model_po_fit[:-1].ravel(), model_ps_fit[:-1].ravel()), 0)
+X = np.stack((np.ones((len(X))), X), -1)
+clf = sm.OLS(y, X).fit()
+r2 = clf.rsquared
+# THIS IS THE DEFAULT SCORE
+print("Default score: {}".format(r2))
+np.save(os.path.join(output_dir_full, "{}_full_scores".format(file_name)), [r2, file_name])  # noqa
+
 # Fit 3 models. ns-only, so-only, and ns+so.
 ns = no_surround_curve[:-1, :-1].reshape(-1, 1)
 so = surround_curve[:-1, :-1].reshape(-1, 1)
@@ -433,7 +478,7 @@ X = np.concatenate((
 clf = sm.OLS(y, X).fit()
 r2 = clf.rsquared
 # print("TB Feature-selective FULL {} r^2: {}".format(file_name, r2))
-np.save(os.path.join(output_dir_full, "{}_full_scores".format(file_name)), [r2, file_name])  # noqa
+# np.save(os.path.join(output_dir_full, "{}_full_scores".format(file_name)), [r2, file_name])  # noqa
 
 # Fit to Diff
 so = surround_curve[:-1, :-1].reshape(-1, 1)
@@ -452,7 +497,7 @@ for idx in np.arange(6):
     r2s.append(r2)
 r2 = np.mean(r2s)
 diffs = -np.argmax(model_ps_fit[1]) + np.argmax(ps_fit[1]) + -np.argmax(model_ps_fit[2]) + np.argmax(ps_fit[2]) + np.argmax(model_ps_fit[4]) - np.argmax(ps_fit[4]) + np.argmax(model_ps_fit[5]) - np.argmax(ps_fit[5])
-print("TB Feature-selective diff {} r^2: {} diff {}".format(file_name, r2, diffs))
+# print("TB Feature-selective diff {} r^2: {} diff {}".format(file_name, r2, diffs))
 np.save(os.path.join(output_dir_diff, "{}_full_scores".format(file_name)), [r2, diffs, file_name])  # noqa
 
 # Plot argdiff
@@ -485,5 +530,5 @@ plt.ylabel("Surround")
 add_identity(ax, color='black', ls='--')  # noqa
 plt.title("Model differences")
 # plt.show()
-plt.savefig(os.path.join(output_dir_full, "{}_differences_model.pdf".format(file_name)))  # noqa
+# plt.savefig(os.path.join(output_dir_full, "{}_differences_model.pdf".format(file_name)))  # noqa
 plt.close(f)
