@@ -155,7 +155,6 @@ def create_image(
                 lhs = patch_hw[1].min()  #  + (patch_hw[1].max() - patch_hw[1].min()) // 20
 
                 if t_surround:
-                    import pdb;pdb.set_trace()
                     patch = np.maximum(np.roll(patch, -len(patch) // 4, axis=0), rotate(patch, theta2, order=1, preserve_range=True))
                 if roll_surround:
                     patch = np.roll(patch, -len(patch) // roll_surround, axis=0)

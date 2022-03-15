@@ -70,11 +70,12 @@ t_surround = False
 timo_type = False
 roll_surround = False
 image_rotate = False
+both_flankers = False
 timo_contrast_div = 1.
 timo_surround_contrast_div = 1.
 
 # kapadia_contrast = [[0.3, 0.4]]  # [[0.2, 0.6]]
-kapadia_contrast = [[0.4, 0.4]]  # [[0.2, 0.6]]
+kapadia_contrast = [[0.1, 0.2]]  # [[0.4, 0.4]]  # [[0.2, 0.6]]
 
 stride = 50
 offset = 20
@@ -137,10 +138,24 @@ elif dataset_root == "gilbert_angelluci_flanker_offsets":
     gilbert_train = False
     gilbert_box = False
     flip_polarity = True
-    image_rotate = 30
+    image_rotate = [-90, -89]
     args.theta1_range = [0, 1]
     args.theta2_range = [0, 1]
-    args.flanker_offset_range = [-30, 22, 2]
+    args.flanker_offset_range = [-18, -17]
+elif dataset_root == "gilbert_angelluci_flanker_kinoshita":
+    # args.lambda_range = [120, 121]
+    control_stim = True  # Produce tilt-illusion-style stim (Fig. 2 of T&B)
+    surround = True
+    gilbert_mask = True  # Produce tilt-illusion-style stim (Fig. 2 of T&B)
+    gilbert_train = False
+    gilbert_box = False
+    flip_polarity = True
+    image_rotate = [-90, -89]
+    both_flankers = True
+    args.theta1_range = [0, 1]
+    args.theta2_range = [0, 1]
+    # args.flanker_offset_range = [-30, 22, 2]
+    args.flanker_offset_range = [-18, -17]
 elif dataset_root == "gilbert_angelluci_flanker_contrast_offsets":
     # args.lambda_range = [120, 121]
     control_stim = True  # Produce tilt-illusion-style stim (Fig. 2 of T&B)
@@ -150,47 +165,12 @@ elif dataset_root == "gilbert_angelluci_flanker_contrast_offsets":
     gilbert_box = False
     flip_polarity = True
     kapadia_contrast = [
-        [0.3, 0.],
-        # [0.05, 0.4],
+        [0.1, 0.],
+        [0.1, 0.2],
         [0.1, 0.4],
-        # [0.15, 0.4],
-        [0.2, 0.4],
-        # [0.25, 0.4],
-        [0.3, 0.4],
-        [0.4, 0.4],
-        # [0.5, 0.4],
-
-        [0.3, 0.],
-        # [0.05, 0.5],
-        [0.1, 0.5],
-        # [0.15, 0.5],
-        [0.2, 0.5],
-        # [0.25, 0.5],
-        [0.3, 0.5],
-        [0.4, 0.5],
-        # [0.5, 0.5],
-
-        [0.3, 0.],
-        # [0.05, 0.6],
         [0.1, 0.6],
-        # [0.15, 0.6],
-        [0.2, 0.6],
-        # [0.25, 0.6],
-        [0.3, 0.6],
-        [0.4, 0.6],
-        # [0.5, 0.6],
-
-        [0.3, 0.],
-        # [0.05, 0.7],
-        [0.1, 0.7],
-        # [0.15, 0.7],
-        [0.2, 0.7],
-        # [0.25, 0.7],
-        [0.3, 0.7],
-        [0.4, 0.7],
-        # [0.5, 0.7],
     ]
-    image_rotate = [-90, 90, 30]
+    image_rotate = [-90, 90, 90]
     args.theta1_range = [0, 1]
     args.theta2_range = [0, 1]
     # args.theta1_range = [-90, 90, 30]
@@ -204,10 +184,11 @@ elif dataset_root == "gilbert_angelluci_flanker_rotations":
     gilbert_train = False
     gilbert_box = False
     flip_polarity = True
-    image_rotate = 30
+    image_rotate = [-90, -89]
     args.theta1_range = [-90, 90]
     args.theta2_range = [-90, 90]
-    args.flanker_offset_range = [-30, -29]  # The argmax from gilbert_angelluci_flanker_offsets
+    # args.flanker_offset_range = [-30, -29]  # The argmax from gilbert_angelluci_flanker_offsets
+    args.flanker_offset_range = [-18, -17]
 elif dataset_root == "gilbert_angelluci_flanker_only":
     # args.lambda_range = [120, 121]
     control_stim = True  # Produce tilt-illusion-style stim (Fig. 2 of T&B)
@@ -217,10 +198,11 @@ elif dataset_root == "gilbert_angelluci_flanker_only":
     gilbert_box = False
     flip_polarity = True
     mask_center = True
-    image_rotate = 30
+    image_rotate = [-90, -89]
     args.theta1_range = [0, 1]
     args.theta2_range = [0, 1]
-    args.flanker_offset_range = [-30, -29]  # The argmax from gilbert_angelluci_flanker_offsets
+    # args.flanker_offset_range = [-30, -29]  # The argmax from gilbert_angelluci_flanker_offsets
+    args.flanker_offset_range = [-18, -17]
 elif dataset_root == "gilbert_angelluci_horizontal_flanker_only":
     # args.lambda_range = [120, 121]
     control_stim = True  # Produce tilt-illusion-style stim (Fig. 2 of T&B)
@@ -231,10 +213,11 @@ elif dataset_root == "gilbert_angelluci_horizontal_flanker_only":
     flip_polarity = True
     mask_center = True
     roll_surround = 4
-    image_rotate = 30
+    image_rotate = [-90, -89]
     args.theta1_range = [-90, -89]
     args.theta2_range = [-90, -89]
-    args.flanker_offset_range = [-30, -29]  # The argmax from gilbert_angelluci_flanker_offsets
+    # args.flanker_offset_range = [-30, -29]  # The argmax from gilbert_angelluci_flanker_offsets
+    args.flanker_offset_range = [-18, -17]
 elif dataset_root == "gilbert_angelluci_t_flanker_only":
     # args.lambda_range = [120, 121]
     control_stim = True  # Produce tilt-illusion-style stim (Fig. 2 of T&B)
@@ -244,10 +227,11 @@ elif dataset_root == "gilbert_angelluci_t_flanker_only":
     gilbert_box = False
     flip_polarity = True
     mask_center = True
-    image_rotate = 30
+    image_rotate = [-90, -89]
     args.theta1_range = [-90, -89]
     args.theta2_range = [-90, -89]
-    args.flanker_offset_range = [-30, -29]  # The argmax from gilbert_angelluci_flanker_offsets
+    # args.flanker_offset_range = [-30, -29]  # The argmax from gilbert_angelluci_flanker_offsets
+    args.flanker_offset_range = [-18, -17]
     t_surround = True
 elif dataset_root == "gilbert_angelluci_t_flanker":
     # args.lambda_range = [120, 121]
@@ -257,10 +241,11 @@ elif dataset_root == "gilbert_angelluci_t_flanker":
     gilbert_train = False
     gilbert_box = False
     flip_polarity = True
-    image_rotate = 30
+    image_rotate = [-90, -89]
     args.theta1_range = [-90, -89]
     args.theta2_range = [-90, -89]
-    args.flanker_offset_range = [-30, -29]  # The argmax from gilbert_angelluci_flanker_offsets
+    # args.flanker_offset_range = [-30, -29]  # The argmax from gilbert_angelluci_flanker_offsets
+    args.flanker_offset_range = [-18, -17]
     t_surround = True
 elif dataset_root == "gilbert_angelluci_repulse":
     control_stim = True  # Produce tilt-illusion-style stim (Fig. 2 of T&B)
