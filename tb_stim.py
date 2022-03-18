@@ -2,6 +2,7 @@ import numpy as np
 import skimage
 import matplotlib.pyplot as plt
 from skimage.draw import circle
+# from skimage.draw import disk as circle
 import os
 import imageio
 from tqdm import tqdm
@@ -155,7 +156,9 @@ def create_image(
                 lhs = patch_hw[1].min()  #  + (patch_hw[1].max() - patch_hw[1].min()) // 20
 
                 if t_surround:
-                    patch = np.maximum(np.roll(patch, -len(patch) // 4, axis=0), rotate(patch, theta2, order=1, preserve_range=True))
+                    patch = np.maximum(np.roll(patch, -15, axis=0), rotate(patch, theta2, order=1, preserve_range=True))
+                    patch = (patch > 0.5).astype(np.float32)
+                    # patch = np.maximum(np.roll(patch, -len(patch) // 3, axis=0), rotate(patch, theta2, order=1, preserve_range=True))
                 if roll_surround:
                     patch = np.roll(patch, -len(patch) // roll_surround, axis=0)
                 if flanker_offset:
@@ -337,7 +340,7 @@ def create_image(
         kapadia_center_contrast, kapadia_surround_contrast = kapadia_contrast
         image[mask == 1] *= kapadia_center_contrast  # 0.2
         image[mask != 1] *= kapadia_surround_contrast  # 0.6
-
+        image *= 255.
     else:
         # Still offer the opportunity to change contrasts
         if timo_contrast_div < 1. and timo_type:
@@ -346,8 +349,8 @@ def create_image(
             h_min, h_max = patch_hw[0].min() - 10, patch_hw[0].max() + 10
             w_min, w_max = patch_hw[1].min() - 10, patch_hw[1].max() + 10
             image[patch_hw[0].min(): patch_hw[0].max(), patch_hw[1].min(): patch_hw[1].max()] *= timo_contrast_div
-    image += 1
-    image *= 127.5
+        image += 1
+        image *= 127.5
     if gilbert_box:
         # Draw a box around the r1-sized RF
         # boxr = int(r1 + image.shape[0] * 0.02)
@@ -359,7 +362,8 @@ def create_image(
         image[center + boxr - lw - lw: center + boxr, center - boxr: center + boxr] = imm
         image[center - boxr: center + boxr, center - boxr: center - boxr + lw + lw] = imm
         image[center - boxr: center + boxr, center + boxr - lw - lw: center + boxr] = imm
-    return image
+    # return image
+    return image.astype(np.uint8)
 
 
 def accumulate_meta(array,

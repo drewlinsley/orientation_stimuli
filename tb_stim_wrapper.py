@@ -75,7 +75,7 @@ timo_contrast_div = 1.
 timo_surround_contrast_div = 1.
 
 # kapadia_contrast = [[0.3, 0.4]]  # [[0.2, 0.6]]
-kapadia_contrast = [[0.1, 0.2]]  # [[0.4, 0.4]]  # [[0.2, 0.6]]
+kapadia_contrast = [[.2, .3]]  # [[0.4, 0.4]]  # [[0.2, 0.6]]
 
 stride = 50
 offset = 20
@@ -141,7 +141,7 @@ elif dataset_root == "gilbert_angelluci_flanker_offsets":
     image_rotate = [-90, -89]
     args.theta1_range = [0, 1]
     args.theta2_range = [0, 1]
-    args.flanker_offset_range = [-18, -17]
+    args.flanker_offset_range = [-28, -27]
 elif dataset_root == "gilbert_angelluci_flanker_kinoshita":
     # args.lambda_range = [120, 121]
     control_stim = True  # Produce tilt-illusion-style stim (Fig. 2 of T&B)
@@ -152,10 +152,10 @@ elif dataset_root == "gilbert_angelluci_flanker_kinoshita":
     flip_polarity = True
     image_rotate = [-90, -89]
     both_flankers = True
+    kapadia_contrast = [[.8, .8]]  # [[0.4, 0.4]]  # [[0.2, 0.6]]
     args.theta1_range = [0, 1]
     args.theta2_range = [0, 1]
-    # args.flanker_offset_range = [-30, 22, 2]
-    args.flanker_offset_range = [-18, -17]
+    args.flanker_offset_range = [-35, 60, 17]  # [-35, 90, 5]
 elif dataset_root == "gilbert_angelluci_flanker_contrast_offsets":
     # args.lambda_range = [120, 121]
     control_stim = True  # Produce tilt-illusion-style stim (Fig. 2 of T&B)
@@ -165,10 +165,11 @@ elif dataset_root == "gilbert_angelluci_flanker_contrast_offsets":
     gilbert_box = False
     flip_polarity = True
     kapadia_contrast = [
-        [0.1, 0.],
-        [0.1, 0.2],
-        [0.1, 0.4],
-        [0.1, 0.6],
+        [0.2, 0.],
+        [0.2, 0.2],
+        [0.2, 0.3],  #####
+        [0.2, 0.4],
+        [0.2, 0.5],
     ]
     image_rotate = [-90, 90, 90]
     args.theta1_range = [0, 1]
@@ -188,7 +189,7 @@ elif dataset_root == "gilbert_angelluci_flanker_rotations":
     args.theta1_range = [-90, 90]
     args.theta2_range = [-90, 90]
     # args.flanker_offset_range = [-30, -29]  # The argmax from gilbert_angelluci_flanker_offsets
-    args.flanker_offset_range = [-18, -17]
+    args.flanker_offset_range = [-28, -27]
 elif dataset_root == "gilbert_angelluci_flanker_only":
     # args.lambda_range = [120, 121]
     control_stim = True  # Produce tilt-illusion-style stim (Fig. 2 of T&B)
@@ -202,7 +203,7 @@ elif dataset_root == "gilbert_angelluci_flanker_only":
     args.theta1_range = [0, 1]
     args.theta2_range = [0, 1]
     # args.flanker_offset_range = [-30, -29]  # The argmax from gilbert_angelluci_flanker_offsets
-    args.flanker_offset_range = [-18, -17]
+    args.flanker_offset_range = [-28, -27]
 elif dataset_root == "gilbert_angelluci_horizontal_flanker_only":
     # args.lambda_range = [120, 121]
     control_stim = True  # Produce tilt-illusion-style stim (Fig. 2 of T&B)
@@ -217,7 +218,7 @@ elif dataset_root == "gilbert_angelluci_horizontal_flanker_only":
     args.theta1_range = [-90, -89]
     args.theta2_range = [-90, -89]
     # args.flanker_offset_range = [-30, -29]  # The argmax from gilbert_angelluci_flanker_offsets
-    args.flanker_offset_range = [-18, -17]
+    args.flanker_offset_range = [-28, -27]
 elif dataset_root == "gilbert_angelluci_t_flanker_only":
     # args.lambda_range = [120, 121]
     control_stim = True  # Produce tilt-illusion-style stim (Fig. 2 of T&B)
@@ -231,7 +232,7 @@ elif dataset_root == "gilbert_angelluci_t_flanker_only":
     args.theta1_range = [-90, -89]
     args.theta2_range = [-90, -89]
     # args.flanker_offset_range = [-30, -29]  # The argmax from gilbert_angelluci_flanker_offsets
-    args.flanker_offset_range = [-18, -17]
+    args.flanker_offset_range = [-28, -27]
     t_surround = True
 elif dataset_root == "gilbert_angelluci_t_flanker":
     # args.lambda_range = [120, 121]
@@ -245,7 +246,7 @@ elif dataset_root == "gilbert_angelluci_t_flanker":
     args.theta1_range = [-90, -89]
     args.theta2_range = [-90, -89]
     # args.flanker_offset_range = [-30, -29]  # The argmax from gilbert_angelluci_flanker_offsets
-    args.flanker_offset_range = [-18, -17]
+    args.flanker_offset_range = [-28, -27]
     t_surround = True
 elif dataset_root == "gilbert_angelluci_repulse":
     control_stim = True  # Produce tilt-illusion-style stim (Fig. 2 of T&B)
@@ -254,6 +255,7 @@ elif dataset_root == "gilbert_angelluci_repulse":
     gilbert_train = False
     gilbert_repulse = True
 elif dataset_root == "gilbert_angelluci_train":
+    kapadia_contrast = [[1., 1.]]  # [[0.4, 0.4]]  # [[0.2, 0.6]]
     control_stim = True  # Produce tilt-illusion-style stim (Fig. 2 of T&B)
     surround = True
     gilbert_mask = True  # Produce tilt-illusion-style stim (Fig. 2 of T&B)
@@ -628,5 +630,5 @@ args.r1_range = [args.r1_range[0]/4, args.r1_range[1]/4]  # Remember 500 -> 224 
 args.dataset_path = os.path.join(dataset_root, dataset_subpath)
 if dataset_root == "gilbert":
     surround = True
-tb_stim.from_wrapper(args, train=False, dual_centers=dual_centers, control_stim=control_stim, gilbert_mask=gilbert_mask, gilbert_train=gilbert_train, surround=surround, surround_control=surround_control, gilbert_offset=gilbert_offset, gilbert_repulse=gilbert_repulse, gilbert_shift=gilbert_shift, flip_polarity=flip_polarity, gilbert_box=gilbert_box, timo_type=timo_type, timo_contrast_div=timo_contrast_div, timo_surround_contrast_div=timo_surround_contrast_div, stride=stride, offset=offset, mask_center=mask_center, t_surround=t_surround, roll_surround=roll_surround, kapadia_contrast=kapadia_contrast, image_rotate=image_rotate)
+tb_stim.from_wrapper(args, train=False, dual_centers=dual_centers, control_stim=control_stim, gilbert_mask=gilbert_mask, gilbert_train=gilbert_train, surround=surround, surround_control=surround_control, gilbert_offset=gilbert_offset, gilbert_repulse=gilbert_repulse, gilbert_shift=gilbert_shift, flip_polarity=flip_polarity, gilbert_box=gilbert_box, timo_type=timo_type, timo_contrast_div=timo_contrast_div, timo_surround_contrast_div=timo_surround_contrast_div, stride=stride, offset=offset, mask_center=mask_center, t_surround=t_surround, roll_surround=roll_surround, kapadia_contrast=kapadia_contrast, image_rotate=image_rotate, both_flankers=both_flankers)
 

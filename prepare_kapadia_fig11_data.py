@@ -2,7 +2,7 @@ import os
 import numpy as np
 
 
-d = np.load("kapadia_experiment/test/metadata/1.npy", allow_pickle=True, encoding="latin1")
+d = np.load("kapadia_experiment/test/metadata/1.npy", allow_pickle=True, encoding="latin1")[:12]
 dlist = [d]
 for idx in range(4):
     nd = np.copy(d)

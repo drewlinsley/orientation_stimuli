@@ -83,14 +83,20 @@ python bc_stim_wrapper.py 1 1 1 contrast_modulated_no_surround
 rm -rf kapadia_experiment
 cp -rf gilbert_angelluci_train kapadia_experiment
 rm kapadia_experiment/test/imgs/1/*
-cp gilbert_angelluci_train/test/imgs/1/sample_1.png kapadia_experiment/test/imgs/1/sample_180.png  # center only
+# cp gilbert_angelluci_train/test/imgs/1/sample_1.png kapadia_experiment/test/imgs/1/sample_180.png  # center only
+cp gilbert_angelluci_flanker_contrast_offsets/test/imgs/1/sample_0.png kapadia_experiment/test/imgs/1/sample_180.png
 cp gilbert_angelluci_flanker_only/test/imgs/1/sample_180.png kapadia_experiment/test/imgs/1/sample_179.png  # flanker only
 # cp gilbert_angelluci_flanker_offsets/test/imgs/1/sample_175.png kapadia_experiment/test/imgs/1/sample_178.png
-cp gilbert_angelluci_flanker_contrast_offsets/test/imgs/1/sample_50.png kapadia_experiment/test/imgs/1/sample_178.png  # center and flanker
+cp gilbert_angelluci_flanker_contrast_offsets/test/imgs/1/sample_14.png kapadia_experiment/test/imgs/1/sample_178.png  # center and flanker
 cp gilbert_angelluci_t_flanker/test/imgs/1/sample_180.png kapadia_experiment/test/imgs/1/sample_177.png  # center and T flanker
 # cp gilbert_angelluci_t_flanker_only/test/imgs/1/sample_180.png kapadia_experiment/test/imgs/1/sample_176.png  # T flanker only
 cp gilbert_angelluci_horizontal_flanker_only/test/imgs/1/sample_180.png kapadia_experiment/test/imgs/1/sample_176.png  # T flanker only
 python prepare_kapadia_fig11_data.py
+
+# Fix the gilbert_angelluci_flanker_kinoshita dataset (add a center only stim)
+rm gilbert_angelluci_flanker_kinoshita/test/imgs/1/sample_180.png
+cp gilbert_angelluci_flanker_contrast_offsets/test/imgs/1/sample_0.png gilbert_angelluci_flanker_kinoshita/test/imgs/1/sample_0.png
+python prepare_kinoshita_fig11_data.py
 
 # Move data
 cp -rf orientation_tilt ${DESTINATION}

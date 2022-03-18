@@ -115,7 +115,10 @@ def main(
         responses = np.roll((((np.arctan2(responses[:, 0], responses[:, 1])) * 180 / np.pi) % 360), 90).reshape(-1, 1)  # noqa
 
     # Correct meta: Remove 180 degrees and reverse.
-    meta_col = meta_arr[:, meta_col].astype(int)
+    try:
+        meta_col = meta_arr[:, meta_col].astype(int)
+    except:
+        import pdb;pdb.set_trace()
     if meta_col.min() == -90:
         meta_col = meta_col + 90
     else:
