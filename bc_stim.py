@@ -36,7 +36,7 @@ def create_image(imsize,
                  r2=None, theta2=None, lambda2=None, shift2=None, dual_center=False, surround=True):
     mask1 = create_annuli_mask(r1, imsize)
     sin1 = create_sinusoid(imsize, theta1, lambda1, shift1)
-    sin1 *= contrast1
+    sin1 *= contrast1  # * 0.5
 
     if dual_center and shift2 is not None:
         if dual_center == True:
@@ -45,14 +45,14 @@ def create_image(imsize,
             shift2 = shift1
         sindual = create_sinusoid(imsize, dual_center, lambda2, shift2)
         # TODO: Put the random TB_LIST into the meta file
-        sindual *= contrast2
+        sindual *= contrast2  # * 0.5
         sin1 = (np.stack((sin1, sindual), -1)).mean(-1)
     if r2 is not None:
         if r2<=r1:
             raise ValueError('r2 should be greater than r1')
         mask2 = create_annuli_mask(r2, imsize)
         sin2 = create_sinusoid(imsize, theta2, lambda2, shift2)
-        sindual *= contrast2
+        sindual *= contrast2  # * 0.5
         if not surround:
             sin2 = np.zeros_like(sin2)
         image = sin2*mask2
@@ -107,12 +107,14 @@ def from_wrapper(args, train=True, dual_centers=[90], control_stim=False, surrou
     lambda_range = np.arange(args.lambda_range[0], args.lambda_range[1])
     theta1_range = np.arange(args.theta1_range[0], args.theta1_range[1])
     theta2_range = np.arange(args.theta2_range[0], args.theta2_range[1])
+    shift_range = np.arange(*args.shift_range)
     contrast_range = args.contrast_range  # np.arange(args.contrast_range[0], args.contrast_range[1])
-    combos = [[i, j, k, l, m] for i in r1_range 
+    combos = [[i, j, k, l, m, n] for i in r1_range 
                  for j in lambda_range 
                  for k in theta1_range
                  for l in contrast_range
-                 for m in contrast_range]
+                 for m in contrast_range
+                 for n in shift_range]
     for iimg, combo in tqdm(enumerate(combos), total=len(combos), desc="Building dataset"):
         t = time.time()
 
@@ -121,9 +123,9 @@ def from_wrapper(args, train=True, dual_centers=[90], control_stim=False, surrou
         im_fn = "sample_%s.png" % (iimg)
 
         ##### SAMPLE IMAGE PARAMETERS
-        r1, lmda, theta1, contrast1, contrast2 = combo
+        r1, lmda, theta1, contrast1, contrast2, shift1= combo
         theta2 = theta1
-        shift1 = 180  # - 90 - 90
+        # shift1 = 180  # - 90 - 90
         if train:
             r2=None
             theta2=None

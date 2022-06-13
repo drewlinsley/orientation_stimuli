@@ -29,14 +29,13 @@ def main(
         idx_stride=128,
         meta_col=4,
         population=False,
-        mean_pool=False,
         include_null=False,
         extract_key=None,  # "prepre_ephys",  # "prepre_ephys",
         exp_diff=3,
         feature_select=1.,
         cross_validate=False):
     """Create and test IEM models."""
-    normalize = False  # True
+    normalize = True  # True
     # debug = False
     # Find and load paths
     paths = glob(os.path.join(file_name, "*.npz"))
@@ -76,25 +75,19 @@ def main(
     # [1536 1664] [1664 1792] [1792 1920] [1920 2048]
     # 110:114, 110:114
     if population:
-        r1 = np.arange(128, 384, dtype=int)
+        # r1 = np.arange(128, 384, dtype=int)
         r2 = np.arange(640, 896, dtype=int)
         r3 = np.arange(1152, 1408, dtype=int)
-        r4 = np.arange(1664, 1920, dtype=int)
-        units = np.concatenate((r1, r4))  # 2x2 Center cube
-        # units = np.arange(2048)  # 4x4 cube
+        # r4 = np.arange(1664, 1920, dtype=int)
+        # units = np.concatenate((r2, r3))  # 2x2 Center cube
+        units = np.arange(2048)  # 4x4 cube
         # units = np.asarray([1023])
     else:
         units = np.arange(start_idx, start_idx + idx_stride, dtype=int)
     for d in out_data_arr:
         if save_images:
             images.append(d["images"].squeeze())
-        if mean_pool:
-            # res = d[extract_key].squeeze(0).reshape(128, -1).mean(1)
-            # res = d[extract_key].squeeze(0).reshape(-1, 128).mean(0)  # [units]
-            res = d[extract_key].squeeze(0)  # .reshape(128, -1).mean(-1)  # [units]
-        else:
-            res = d[extract_key].squeeze(0)  # .reshape(128, -1).mean(1)  # .reshape(-1, 128).mean(0)  # [units]
-            # res = d[extract_key].squeeze(0).reshape(-1, 128).mean(0)  # [units]
+        res = d[extract_key].squeeze(0).reshape(-1, 128).mean(0)  # [units]
         # res = np.maximum(res, 0)
         # res = np.maximum(res, 0).reshape(-1, 16).mean(-1).reshape(1, -1)
         responses.append(res)  # noqa Pre cos/sin 1x1 conv
@@ -118,8 +111,6 @@ def main(
     else:
         raise NotImplementedError(pool_type)
     print("# response units is {}".format(responses.shape[-1]))
-    if extract_key == "logits":
-        responses = np.roll((((np.arctan2(responses[:, 0], responses[:, 1])) * 180 / np.pi) % 360), 90).reshape(-1, 1)  # noqa
 
     # Correct meta: Remove 180 degrees and reverse.
     try:
@@ -162,6 +153,7 @@ def main(
         if model_type != "linear":
             raise NotImplementedError(model_type)
         indicator_matrix = indicator_matrix[meta_col]
+        diffs = np.where(np.diff(meta_col) == np.diff(meta_col).min())[0] + 1
 
         # Stack the null response to the top
         if include_null:
@@ -177,27 +169,6 @@ def main(
         indicator_matrix_plot = np.copy(indicator_matrix)  # noqa
         # indicator_matrix_plot = indicator_matrix
 
-        # Feature selection
-        cutoff = (responses.mean(0) / (responses.std(0) + 1e-8))
-        idx = cutoff > -np.inf  # cutoff.mean()
-        print("Keeping {}/{} features".format(idx.sum(), responses.shape[1]))
-        responses = responses[:, idx]
-        # print("Keeping {} features".format(len(idx)))
-
-        # Compute moments
-        # means = responses.mean(1)
-        # stds = responses.std(1) + 1e-12
-        # mask = responses.sum(1) == 0
-
-        if decompose:
-            preproc = decomposition.NMF(n_components=channels, random_state=0, verbose=False, alpha=0., max_iter=10000)  # noqa
-            # preproc = decomposition.FastICA(n_components=channels, random_state=0, whiten=True, max_iter=10000)  # noqa
-            # preproc = decomposition.PCA(n_components=channels, random_state=0, whiten=False)  # noqa
-            preproc.fit(responses)
-            responses = preproc.transform(responses)
-            # dump(preproc, preproc_file)
-            dump(preproc, preproc_file, protocol=2)
-
         if "both" in file_name:
             raise NotImplementedError
             diff = responses.shape[0] - indicator_matrix.shape[0]
@@ -207,58 +178,56 @@ def main(
         # Transpose to match Serences
         print("Matrix rank: {}, matrix shape: {}".format(np.linalg.matrix_rank(indicator_matrix), indicator_matrix.shape[1]))  # noqa
 
-        means = responses.min(0, keepdims=True)  #  Relu in the model hence this is the true min.
-        stds = (responses.max(0, keepdims=True) - means)  # 1, keepdims=True) - responses.min(1, keepdims=True))
-        if normalize:
-            responses = (responses - means) / stds
-
         responses = responses.T  # voxels X trials
         indicator_matrix = indicator_matrix.T  # channels X trials
         # clf = responses @ indicator_matrix.T @ inv(indicator_matrix @ indicator_matrix.T)  # noqa
 
-        clf = responses @ inv(indicator_matrix)
+        prev = 0
+        fits = []
+        for idx in diffs:
+            it_res = responses[:, prev: idx]
+            it_labels = indicator_matrix[:, prev: idx]
 
-        dec_responses = inv(clf) @ responses
-        # dec_means = dec_responses.min(1, keepdims=True)  #  Relu in the model hence this is the true min.
-        # dec_stds = (dec_responses.max(1, keepdims=True) - means)  # 1, keepdims=True) - responses.min(1, keepdims=True))
-        # means = dec_responses.min()
-        # stds = (dec_responses.max() - means)
-        # dec_responses = (dec_responses - dec_means) / dec_stds
-        # stds[mask] = 1  # 
+            clf = it_res @ inv(it_labels)
+            preds = inv(clf) @ it_res
 
-        # dump(clf, model_file)
-        dump(clf, model_file, protocol=2)
-        print("Model saved to {}".format(model_file))
-        np.savez(train_moments, idx=idx, means=means, stds=stds)
+            # fit = np.mean([np.mean((x - y)  ** 2) for x, y in zip(preds, it_labels)])  # np.mean([np.corrcoef(x, y)[0, 1] for x, y in zip(preds, it_labels)])
 
-        # Third, plot Y and X to share with lax
-        if debug:
-            f = plt.figure()
-            plt.subplot(141)
-            plt.title('Idealized (transpose)')
-            plt.imshow(indicator_matrix_plot.T)
-            plt.subplot(144)
-            plt.title('Y')
-            plt.imshow(responses)
-            plt.subplot(142)
-            plt.title('Parameters')
-            plt.imshow(clf)
-            plt.subplot(143)
-            plt.title('inverse')
-            plt.imshow(dec_responses)  # inv(clf) @ responses)  # inv(indicator_matrix @ indicator_matrix.T))
-            plt.show()
-            plt.close(f)
-            print("min/max indicator_matrix {} {}".format(indicator_matrix_plot.T.min(), indicator_matrix_plot.T.max()))
-            print("min/max responses {} {}".format(responses.min(), responses.max()))
-        print("min/max inverse {} {}".format(dec_responses.min(), dec_responses.max()))
+            # Compute moments
+            means = responses.min(1, keepdims=True)  #  Relu in the model hence this is the true min.
+            stds = (responses.max(1, keepdims=True) - means)  # 1, keepdims=True) - responses.min(1, keepdims=True))
+            means = responses.min()
+            stds = (responses.max() - means)
+            responses = (responses - means) / stds
+            fit = np.mean([np.mean((x - y)  ** 2) for x, y in zip(preds, it_labels)])  # np.mean([np.corrcoef(x, y)[0, 1] for x, y in zip(preds, it_labels)])
+            # fit = np.mean([np.mean(np.abs(x - y)) for x, y in zip(preds, it_labels)])  # np.mean([np.corrcoef(x, y)[0, 1] for x, y in zip(preds, it_labels)])
+            # fit = np.mean([np.corrcoef(x, y)[0, 1] for x, y in zip(preds, it_labels)])
+            fits.append(fit)
+
+            prev = idx
+
+        #  dump(clf, model_file)
+        fits = np.asarray(fits)[:-1]
+        arg = diffs[np.argmin(fits)] - 1
+        max_fit = np.min(fits)
+        import pdb;pdb.set_trace()
+        best_meta = meta_arr[arg]
+        lmda = best_meta[5]
+        shift = best_meta[6]
+        plt.plot(fits)
+        plt.title("Fits")
+        plt.show()
+        print("Best fit: {} lambda: {} shift: {}".format(max_fit, lmda, shift))
+
+        # metadata,
+        # im_sub_path, im_fn, iimg,
+        # r1, theta1, lmda, shift1,
+        # r2, theta2, lmda, shift2, dual_center=dual_center)
 
     else:
         moments = np.load(train_moments)
         means = moments['means']
         stds = moments['stds']
-        if normalize:
-            responses = (responses - means) / stds
-
         # idx = moments['idx']
         if "orientation_probe_no_surround_outputs" in model_output or "orientation_probe_outputs" in model_output:  # noqa
             if include_null:
@@ -273,16 +242,14 @@ def main(
                 responses = np.concatenate((responses[0].reshape(1, -1), responses))  # noqa
         # responses = responses[:, idx]
         clf = load(model_file)
+        if normalize:
+            responses = (responses - means) / stds
 
         if decompose:
             preproc = load(preproc_file)
             responses = preproc.transform(responses)
         # predictions = inv(clf.T @ clf) @ clf.T @ responses.T
         predictions = inv(clf) @ responses.T
-
-        # if normalize:
-        #     predictions = (predictions - means) / stds
-
 
         if debug:
             f = plt.figure()
@@ -345,7 +312,7 @@ if __name__ == '__main__':
         "--meta_col",
         type=int,
         dest="meta_col",
-        default=8,  # 4,  # None,
+        default=4,  # None,
         help="Number of dimensions in meta file.")
     parser.add_argument(
         "--exp_diff",
@@ -401,12 +368,6 @@ if __name__ == '__main__':
         dest="debug",
         default=False,
         help="Debug.")
-    parser.add_argument(
-        "--mean_pool",
-        action="store_true",
-        dest="mean_pool",
-        default=False,
-        help="mean pool over neurons.")
     parser.add_argument(
         "--model_file",
         type=str,

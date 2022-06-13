@@ -42,19 +42,31 @@ args.image_size = [500, 500]
 
 # ALIGNED WITH TB2015
 args.r1_range = [31 * 3, (31 * 3) + 1]  # [100, 120]
+# args.r1_range = [21 * 3, (21 * 3) + 1]  # [100, 120]
 # args.lambda_range = [15, 16]  # [30, 90]
-args.lambda_range = [22, 23]  # [30, 90]
-# args.lambda_range = [16, 17]  # [30, 90]
+# args.lambda_range = [23, 24]
+# args.lambda_range = [29, 30]  # [30, 90]
+# args.lambda_range = [20, 21]  # [30, 90]
+args.lambda_range = [21, 22]
+# args.lambda_range = [19, 20]  # [30, 90]
+# args.lambda_range = [21, 22]  # [30, 90]
+# args.lambda_range = [17, 18]
+# args.lambda_range = [26, 27]
 
 # args.theta1_range = [22.5, 67.5]  # H/TD
 # args.theta2_range = [22.5, 67.5]  # H/TD
 args.theta1_range = [-90, 90]  # H/TD
 args.theta2_range = [-90, 90]  # H/TD
+# args.shift_range = [120, 121]  # 180, 181]
+args.shift_range = [90, 91]
+# args.shift_range = [0, 1]
+# args.shift_range = [180, 181]
+# args.shift_range = [210, 211]
 
 args.flanker_offset_range = [0, 1]
 
 # args.TB_stim = True
-dual_centers = [180]
+dual_centers = [180]  # args.shift_range[0]]  # 180]
 control_stim = False
 surround = True
 surround_control = False
@@ -81,19 +93,36 @@ stride = 50
 offset = 20
 
 if dataset_root == "plaid_surround":
-    dual_centers = [180]  # T&B-style stimuli
+    # dual_centers = [180]  # T&B-style stimuli
+    pass
 elif dataset_root == "plaid_no_surround":
-    dual_centers = [180]  # T&B-style stimuli
+    # dual_centers = [180]  # T&B-style stimuli
     surround = False
 elif dataset_root == "orientation_tilt":
+    # dual_centers = [180]
+    dual_centers = [False]  # 180]  # Only shows orientation
     control_stim = True  # Produce tilt-illusion-style stim (Fig. 2 of T&B)
 elif dataset_root == "orientation_probe":
-    dual_centers = [0]  # Only shows orientation
+    # dual_centers = [180]  # Only shows orientation
+    dual_centers = [False]
+    control_stim = False
 elif dataset_root == "orientation_probe_no_surround":
-    dual_centers = [0]  # Only shows orientation
+    dual_centers = [False]  # 180]  # Only shows orientation
+    # control_stim = True
     surround = False
+elif dataset_root == "orientation_search":
+    # dual_centers = [180]  # Only shows orientation
+    surround = False
+    args.shift_range = [0, 181, 180]  # 170, 180, 190]  # [210, 211]  # [150, 225, 15]
+    args.lambda_range = [16, 27]
+elif dataset_root == "surround_search":
+    # dual_centers = [180]  # Only shows orientation
+    args.shift_range = [180, 181]  # 0, 181, 90]  # 170, 180, 190]  # [210, 211]  # [150, 225, 15]
+    args.lambda_range = [16, 27]
+    args.theta1_range = [-90, 90, 30]  # H/TD
+    args.theta2_range = [-90, 90, 30]  # H/TD
 elif dataset_root == "surround_control":
-    dual_centers = [180]
+    # dual_centers = [180]
     surround_control = True
 elif dataset_root == "gilbert_angelluci_offset":
     control_stim = True  # Produce tilt-illusion-style stim (Fig. 2 of T&B)
@@ -155,7 +184,7 @@ elif dataset_root == "gilbert_angelluci_flanker_kinoshita":
     kapadia_contrast = [[.8, .8]]  # [[0.4, 0.4]]  # [[0.2, 0.6]]
     args.theta1_range = [0, 1]
     args.theta2_range = [0, 1]
-    args.flanker_offset_range = [-35, 60, 17]  # [-35, 90, 5]
+    args.flanker_offset_range = [-35, 60, 1]  # [-35, 90, 5]
 elif dataset_root == "gilbert_angelluci_flanker_contrast_offsets":
     # args.lambda_range = [120, 121]
     control_stim = True  # Produce tilt-illusion-style stim (Fig. 2 of T&B)

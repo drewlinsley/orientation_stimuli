@@ -20,6 +20,8 @@ DESTINATION=../refactor_gammanet
 # python contrast_tb_stim_wrapper.py 1 1 1 orientation_probe 0.50
 # python contrast_tb_stim_wrapper.py 1 1 1 orientation_probe 0.75
 
+rm -rf *gilbert_angelluci*
+rm -rf kapadia_experiment
 python tb_stim_wrapper.py 1 1 1 gilbert_angelluci_train
 python tb_stim_wrapper.py 1 1 1 gilbert_angelluci_flanker_offsets
 python tb_stim_wrapper.py 1 1 1 gilbert_angelluci_flanker_rotations
@@ -28,7 +30,30 @@ python tb_stim_wrapper.py 1 1 1 gilbert_angelluci_flanker_only
 python tb_stim_wrapper.py 1 1 1 gilbert_angelluci_t_flanker_only
 python tb_stim_wrapper.py 1 1 1 gilbert_angelluci_t_flanker
 python tb_stim_wrapper.py 1 1 1 gilbert_angelluci_horizontal_flanker_only
+
+# Prepare the kapadia dataset
+rm -rf kapadia_experiment
+cp -rf gilbert_angelluci_train kapadia_experiment
+rm kapadia_experiment/test/imgs/1/*
+# cp gilbert_angelluci_train/test/imgs/1/sample_1.png kapadia_experiment/test/imgs/1/sample_180.png  # center only
+cp gilbert_angelluci_flanker_contrast_offsets/test/imgs/1/sample_0.png kapadia_experiment/test/imgs/1/sample_180.png
+cp gilbert_angelluci_flanker_only/test/imgs/1/sample_180.png kapadia_experiment/test/imgs/1/sample_179.png  # flanker only
+# cp gilbert_angelluci_flanker_offsets/test/imgs/1/sample_175.png kapadia_experiment/test/imgs/1/sample_178.png
+cp gilbert_angelluci_flanker_contrast_offsets/test/imgs/1/sample_14.png kapadia_experiment/test/imgs/1/sample_178.png  # center and flanker
+cp gilbert_angelluci_t_flanker/test/imgs/1/sample_180.png kapadia_experiment/test/imgs/1/sample_177.png  # center and T flanker
+# cp gilbert_angelluci_t_flanker_only/test/imgs/1/sample_180.png kapadia_experiment/test/imgs/1/sample_176.png  # T flanker only
+cp gilbert_angelluci_horizontal_flanker_only/test/imgs/1/sample_180.png kapadia_experiment/test/imgs/1/sample_176.png  # T flanker only
+python prepare_kapadia_fig11_data.py
+
 python tb_stim_wrapper.py 1 1 1 gilbert_angelluci_flanker_kinoshita
+# Fix the gilbert_angelluci_flanker_kinoshita dataset (add a center only stim)
+rm gilbert_angelluci_flanker_kinoshita/test/imgs/1/sample_180.png
+cp gilbert_angelluci_flanker_contrast_offsets/test/imgs/1/sample_0.png gilbert_angelluci_flanker_kinoshita/test/imgs/1/sample_0.png
+python prepare_kinoshita_fig11_data.py
+
+cp -rf *gilbert* ${DESTINATION}
+cp -rf kapadia_experiment ${DESTINATION}
+
 
 # python tb_stim_wrapper.py 1 1 1 gilbert_angelluci_offset
 # python tb_stim_wrapper.py 1 1 1 gilbert_angelluci
@@ -64,7 +89,9 @@ python tb_stim_wrapper.py 1 1 1 gilbert_angelluci_flanker_kinoshita
 # python tb_stim_wrapper.py 1 1 1 timo_zigzag_high_contrast
 # python tb_stim_wrapper.py 1 1 1 timo_zigzag_low_contrast
 
-# rm -rf orientation_tilt orientation_probe orientation_probe_no_surround plaid_surround plaid_no_surround surround_control
+DESTINATION=../refactor_gammanet
+rm -rf orientation_tilt orientation_probe orientation_probe_no_surround orientation_search plaid_surround plaid_no_surround surround_control contrast_modulated*
+python tb_stim_wrapper.py 1 1 1 orientation_search
 python tb_stim_wrapper.py 1 1 1 orientation_tilt
 python tb_stim_wrapper.py 1 1 1 orientation_probe
 python tb_stim_wrapper.py 1 1 1 orientation_probe_no_surround
@@ -79,24 +106,31 @@ python bc_stim_wrapper.py 1 1 1 contrast_modulated_no_surround
 # python phase_stim_wrapper.py 1 1 1 phase_modulated_plaid
 # python control_contrast_stim_wrapper.py 1 1 1 control_contrast_modulated_no_surround
 
-# Prepare the kapadia dataset
-rm -rf kapadia_experiment
-cp -rf gilbert_angelluci_train kapadia_experiment
-rm kapadia_experiment/test/imgs/1/*
-# cp gilbert_angelluci_train/test/imgs/1/sample_1.png kapadia_experiment/test/imgs/1/sample_180.png  # center only
-cp gilbert_angelluci_flanker_contrast_offsets/test/imgs/1/sample_0.png kapadia_experiment/test/imgs/1/sample_180.png
-cp gilbert_angelluci_flanker_only/test/imgs/1/sample_180.png kapadia_experiment/test/imgs/1/sample_179.png  # flanker only
-# cp gilbert_angelluci_flanker_offsets/test/imgs/1/sample_175.png kapadia_experiment/test/imgs/1/sample_178.png
-cp gilbert_angelluci_flanker_contrast_offsets/test/imgs/1/sample_14.png kapadia_experiment/test/imgs/1/sample_178.png  # center and flanker
-cp gilbert_angelluci_t_flanker/test/imgs/1/sample_180.png kapadia_experiment/test/imgs/1/sample_177.png  # center and T flanker
-# cp gilbert_angelluci_t_flanker_only/test/imgs/1/sample_180.png kapadia_experiment/test/imgs/1/sample_176.png  # T flanker only
-cp gilbert_angelluci_horizontal_flanker_only/test/imgs/1/sample_180.png kapadia_experiment/test/imgs/1/sample_176.png  # T flanker only
-python prepare_kapadia_fig11_data.py
+rm -rf ${DESTINATION}/orientation_tilt
+rm -rf ${DESTINATION}/orientation_probe*
+rm -rf ${DESTINATION}/orientation_search
+rm -rf ${DESTINATION}/plaid_surround
+rm -rf ${DESTINATION}/plaid_no_surround
+rm -rf ${DESTINATION}/surround_control
+rm -rf ${DESTINATION}/contrast_modulated*
 
-# Fix the gilbert_angelluci_flanker_kinoshita dataset (add a center only stim)
-rm gilbert_angelluci_flanker_kinoshita/test/imgs/1/sample_180.png
-cp gilbert_angelluci_flanker_contrast_offsets/test/imgs/1/sample_0.png gilbert_angelluci_flanker_kinoshita/test/imgs/1/sample_0.png
-python prepare_kinoshita_fig11_data.py
+
+cp -rf orientation_tilt ${DESTINATION}
+cp -rf orientation_probe ${DESTINATION}
+cp -rf orientation_search ${DESTINATION}/
+cp -rf orientation_probe_no_surround ${DESTINATION}
+cp -rf plaid_surround ${DESTINATION}
+cp -rf plaid_no_surround ${DESTINATION}
+cp -rf surround_control ${DESTINATION}
+cp -rf contrast_modulated* ${DESTINATION}
+
+cd ../refactor_gammanet
+# conda deactivate
+conda activate py2
+bash DEBUG_TB.sh
+cd ../is_exps
+# conda deactivate
+# bash DEBUG.sh
 
 # Move data
 cp -rf orientation_tilt ${DESTINATION}

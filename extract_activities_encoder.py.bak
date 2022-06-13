@@ -29,14 +29,13 @@ def main(
         idx_stride=128,
         meta_col=4,
         population=False,
-        mean_pool=False,
         include_null=False,
         extract_key=None,  # "prepre_ephys",  # "prepre_ephys",
         exp_diff=3,
         feature_select=1.,
         cross_validate=False):
     """Create and test IEM models."""
-    normalize = False  # True
+    normalize = True  # True
     # debug = False
     # Find and load paths
     paths = glob(os.path.join(file_name, "*.npz"))
@@ -88,13 +87,8 @@ def main(
     for d in out_data_arr:
         if save_images:
             images.append(d["images"].squeeze())
-        if mean_pool:
-            # res = d[extract_key].squeeze(0).reshape(128, -1).mean(1)
-            # res = d[extract_key].squeeze(0).reshape(-1, 128).mean(0)  # [units]
-            res = d[extract_key].squeeze(0)  # .reshape(128, -1).mean(-1)  # [units]
-        else:
-            res = d[extract_key].squeeze(0)  # .reshape(128, -1).mean(1)  # .reshape(-1, 128).mean(0)  # [units]
-            # res = d[extract_key].squeeze(0).reshape(-1, 128).mean(0)  # [units]
+        # import pdb;pdb.set_trace()
+        res = d[extract_key].squeeze(0)  # .reshape(-1, 128).mean(0)  # [units]
         # res = np.maximum(res, 0)
         # res = np.maximum(res, 0).reshape(-1, 16).mean(-1).reshape(1, -1)
         responses.append(res)  # noqa Pre cos/sin 1x1 conv
@@ -188,6 +182,11 @@ def main(
         # means = responses.mean(1)
         # stds = responses.std(1) + 1e-12
         # mask = responses.sum(1) == 0
+        means = 0  #  Relu in the model hence this is the true min.
+        stds = (responses.max() - means)  # 1, keepdims=True) - responses.min(1, keepdims=True))
+        # stds[mask] = 1  # 
+        if normalize:
+            responses = (responses - means) / stds
 
         if decompose:
             preproc = decomposition.NMF(n_components=channels, random_state=0, verbose=False, alpha=0., max_iter=10000)  # noqa
@@ -207,24 +206,11 @@ def main(
         # Transpose to match Serences
         print("Matrix rank: {}, matrix shape: {}".format(np.linalg.matrix_rank(indicator_matrix), indicator_matrix.shape[1]))  # noqa
 
-        means = responses.min(0, keepdims=True)  #  Relu in the model hence this is the true min.
-        stds = (responses.max(0, keepdims=True) - means)  # 1, keepdims=True) - responses.min(1, keepdims=True))
-        if normalize:
-            responses = (responses - means) / stds
-
         responses = responses.T  # voxels X trials
         indicator_matrix = indicator_matrix.T  # channels X trials
         # clf = responses @ indicator_matrix.T @ inv(indicator_matrix @ indicator_matrix.T)  # noqa
 
         clf = responses @ inv(indicator_matrix)
-
-        dec_responses = inv(clf) @ responses
-        # dec_means = dec_responses.min(1, keepdims=True)  #  Relu in the model hence this is the true min.
-        # dec_stds = (dec_responses.max(1, keepdims=True) - means)  # 1, keepdims=True) - responses.min(1, keepdims=True))
-        # means = dec_responses.min()
-        # stds = (dec_responses.max() - means)
-        # dec_responses = (dec_responses - dec_means) / dec_stds
-        # stds[mask] = 1  # 
 
         # dump(clf, model_file)
         dump(clf, model_file, protocol=2)
@@ -245,20 +231,17 @@ def main(
             plt.imshow(clf)
             plt.subplot(143)
             plt.title('inverse')
-            plt.imshow(dec_responses)  # inv(clf) @ responses)  # inv(indicator_matrix @ indicator_matrix.T))
+            plt.imshow(inv(clf) @ responses)  # inv(indicator_matrix @ indicator_matrix.T))
             plt.show()
             plt.close(f)
+            print("min/max inverse {} {}".format((inv(clf) @ responses).min(), (inv(clf) @ responses).max()))
             print("min/max indicator_matrix {} {}".format(indicator_matrix_plot.T.min(), indicator_matrix_plot.T.max()))
             print("min/max responses {} {}".format(responses.min(), responses.max()))
-        print("min/max inverse {} {}".format(dec_responses.min(), dec_responses.max()))
 
     else:
         moments = np.load(train_moments)
         means = moments['means']
         stds = moments['stds']
-        if normalize:
-            responses = (responses - means) / stds
-
         # idx = moments['idx']
         if "orientation_probe_no_surround_outputs" in model_output or "orientation_probe_outputs" in model_output:  # noqa
             if include_null:
@@ -273,16 +256,14 @@ def main(
                 responses = np.concatenate((responses[0].reshape(1, -1), responses))  # noqa
         # responses = responses[:, idx]
         clf = load(model_file)
+        if normalize:
+            responses = (responses - means) / stds
 
         if decompose:
             preproc = load(preproc_file)
             responses = preproc.transform(responses)
         # predictions = inv(clf.T @ clf) @ clf.T @ responses.T
         predictions = inv(clf) @ responses.T
-
-        # if normalize:
-        #     predictions = (predictions - means) / stds
-
 
         if debug:
             f = plt.figure()
@@ -345,7 +326,7 @@ if __name__ == '__main__':
         "--meta_col",
         type=int,
         dest="meta_col",
-        default=8,  # 4,  # None,
+        default=4,  # None,
         help="Number of dimensions in meta file.")
     parser.add_argument(
         "--exp_diff",
@@ -401,12 +382,6 @@ if __name__ == '__main__':
         dest="debug",
         default=False,
         help="Debug.")
-    parser.add_argument(
-        "--mean_pool",
-        action="store_true",
-        dest="mean_pool",
-        default=False,
-        help="mean pool over neurons.")
     parser.add_argument(
         "--model_file",
         type=str,

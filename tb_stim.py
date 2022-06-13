@@ -62,29 +62,60 @@ def create_image(
         mask_center=False,
         t_surround=False,
         flanker_offset=0,
-        middle_mask_size=1.75,  # Was 1.5
+        middle_mask_size=1.75,  # Was 1.5, then 2
         roll_surround=False,
         image_rotate=False,
         both_flankers=False,
         kapadia_contrast=[0.2, 0.6],
+        idx=False,
         surround_control=False):
     if gilbert_mask:
         shift1, shift2 = 350,350
+
     mask1 = create_annuli_mask(r1, imsize)
     sin1 = create_sinusoid(imsize, theta1, lambda1, shift1)
     if dual_center and shift2 is not None:
-        if dual_center == True:
-            dual_center = lambda1 + np.random.choice(TB_LIST)
-            lambda2 = lambda1
-            shift2 = shift1
-        sindual = create_sinusoid(imsize, dual_center, lambda2, shift2)
+
+        # if dual_center == True:
+        #     dual_center = lambda1  # + np.random.choice(TB_LIST)
+        lambda2 = lambda1
+        shift2 = shift1
+        # sindual = create_sinusoid(imsize, dual_center, lambda2, shift2)  # (theta1 - 180) % 90)  # shift2)
+        # sindual = create_sinusoid(imsize, dual_center, lambda2, theta1)
+        if theta1 == 0 or theta1 == 1:
+            sindual = create_sinusoid(imsize, dual_center, lambda2, theta1) 
+        else:
+            sindual = create_sinusoid(imsize, dual_center, lambda2, shift2)
+        # print(theta1, theta2)
+        if 0:  # theta1 == 0 or theta1 == -90:
+            import pdb;pdb.set_trace()
+            plt.subplot(121);plt.imshow(sin1);plt.subplot(122);plt.imshow(sindual);plt.show()
+            sin1 = create_sinusoid(imsize, theta1, lambda1, shift1)
+            fixed_sindual = create_sinusoid(imsize, dual_center, lambda2, shift2)
         # TODO: Put the random TB_LIST into the meta file
+        # if idx == 30:
+        #     import pdb;pdb.set_trace()
+        #     print(imsize, theta1, lambda1, shift1)
+        #     print(imsize, dual_center, lambda2, shift2)
+        #     # plt.subplot(131);plt.imshow(sin1, vmin=-1, vmax=1);plt.subplot(132);plt.imshow(sindual, vmin=-1, vmax=1);plt.subplot(133);plt.imshow(sin1 + sindual, vmin=-1, vmax=1);plt.show()
+
         sin1 = (np.stack((sin1, sindual), -1)).mean(-1)
+        # NORMALIZING SIN1
+        # sin1 = (sin1 - sin1.min()) / (sin1.max() - sin1.min())
     if r2 is not None:
         if r2<=r1:
             raise ValueError('r2 should be greater than r1')
         mask2 = create_annuli_mask(r2, imsize)
-        sin2 = create_sinusoid(imsize, theta2, lambda2, shift2)
+        sin2 = create_sinusoid(imsize, theta2, lambda2, shift2 + theta1)  # theta2)
+
+        if 0:  # theta2 == 0:
+            import pdb;pdb.set_trace()
+            plt.subplot(121);plt.imshow(sin1);plt.subplot(122);plt.imshow(sin2);plt.show()
+            sin1 = create_sinusoid(imsize, theta1, lambda1, shift1)
+            fixed_sindual = create_sinusoid(imsize, dual_center, lambda2, shift2)
+            plt.subplot(121);plt.imshow(sin1);plt.subplot(122);plt.imshow(fixed_sindual);plt.show()
+
+
         if not surround:
             mask2 = np.zeros_like(mask2)
         image = sin2*mask2
@@ -100,8 +131,12 @@ def create_image(
     if gilbert_mask and r2 is not None:
         # Mask the image
         mask = np.copy(image)
-        mask[:, :245] = -1000
-        mask[:, 255:] = -1000
+        mask[:, :247] = -1000
+        mask[:, 253:] = -1000
+        # mask[:, :248] = -1000
+        # mask[:, 252:] = -1000
+
+
         # mask[:, :249] = -1000
         # mask[:, 252:] = -1000
         mask[:235] = -1000
@@ -409,20 +444,22 @@ def from_wrapper(args, train=True, dual_centers=[90], control_stim=False, surrou
             return
 
     r1_range = np.arange(args.r1_range[0], args.r1_range[1])
-    lambda_range = np.arange(args.lambda_range[0], args.lambda_range[1])
+    lambda_range = np.arange(*args.lambda_range)
     theta1_range = np.arange(*args.theta1_range)  # args.theta1_range[0], args.theta1_range[1])
     theta2_range = np.arange(*args.theta2_range)  # args.theta2_range[0], args.theta2_range[1])
     flanker_offset_range = np.arange(*args.flanker_offset_range)
+    shift_range = np.arange(*args.shift_range)
     if image_rotate:
         image_rotate_range = np.arange(*image_rotate)
     else:
         image_rotate_range = [False]
-    combos = [[i, j, k, l, m, n] for i in r1_range 
+    combos = [[i, j, k, l, m, n, o] for i in r1_range 
                  for j in lambda_range 
                  for k in theta1_range
                  for l in flanker_offset_range
                  for m in kapadia_contrast
-                 for n in image_rotate_range]
+                 for n in image_rotate_range
+                 for o in shift_range]
     for iimg, combo in tqdm(enumerate(combos), total=len(combos), desc="Building dataset"):
         t = time.time()
 
@@ -432,9 +469,9 @@ def from_wrapper(args, train=True, dual_centers=[90], control_stim=False, surrou
         im_fn = "sample_%s.png" % (iimg)
 
         ##### SAMPLE IMAGE PARAMETERS
-        r1, lmda, theta1, flanker_offset, kapadia_contrast, image_rotate = combo
+        r1, lmda, theta1, flanker_offset, kapadia_contrast, image_rotate, shift1 = combo
         theta2 = theta1
-        shift1 = 180  # 180
+        # shift1 = 180  # 180
         if train:
             r2=None
             theta2=None
@@ -452,7 +489,7 @@ def from_wrapper(args, train=True, dual_centers=[90], control_stim=False, surrou
             img = create_image(
                 args.image_size,
                 r1, theta1, lmda, shift1,
-                r2=r2, theta2=theta2, lambda2=lmda, shift2=shift2, dual_center=dual_center, surround=surround, surround_control=surround_control, gilbert_mask=gilbert_mask, gilbert_train=gilbert_train, gilbert_offset=gilbert_offset, gilbert_repulse=gilbert_repulse, gilbert_shift=gilbert_shift, flip_polarity=flip_polarity, gilbert_box=gilbert_box, timo_type=timo_type, timo_contrast_div=timo_contrast_div, timo_surround_contrast_div=timo_surround_contrast_div, stride=stride, offset=offset, flanker_offset=flanker_offset, mask_center=mask_center,t_surround=t_surround, roll_surround=roll_surround, kapadia_contrast=kapadia_contrast, image_rotate=image_rotate, both_flankers=both_flankers)
+                r2=r2, theta2=theta2, lambda2=lmda, shift2=shift2, dual_center=dual_center, surround=surround, surround_control=surround_control, gilbert_mask=gilbert_mask, gilbert_train=gilbert_train, gilbert_offset=gilbert_offset, gilbert_repulse=gilbert_repulse, gilbert_shift=gilbert_shift, flip_polarity=flip_polarity, gilbert_box=gilbert_box, timo_type=timo_type, timo_contrast_div=timo_contrast_div, timo_surround_contrast_div=timo_surround_contrast_div, stride=stride, offset=offset, flanker_offset=flanker_offset, mask_center=mask_center,t_surround=t_surround, roll_surround=roll_surround, kapadia_contrast=kapadia_contrast, image_rotate=image_rotate, both_flankers=both_flankers, idx=iimg)
 
             if (args.save_images):
                 imageio.imwrite(os.path.join(args.dataset_path, im_sub_path, im_fn), img)

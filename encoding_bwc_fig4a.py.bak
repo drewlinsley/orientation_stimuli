@@ -29,6 +29,7 @@ if len(sys.argv) > 1:
 else:
     file_name = None
 
+import pdb;pdb.set_trace()
 if len(sys.argv) > 2:
     no_surround = np.load(sys.argv[2])
 else:
@@ -68,10 +69,8 @@ contrasts = (metas[:, -2:]).astype(float)
 # no_surround = no_surround.reshape(5, 5, 180)  # [..., 0]
 # surround = surround.reshape(5, 5, 180)  # [..., 0]
 
-# # Roll so that they start at -45
+# Roll so that they start at -45
 no_surround = np.roll(no_surround, 180 - 135, axis=0)
-# no_surround = np.roll(no_surround, 3, axis=0)
-
 # no_surround = np.concatenate((no_surround[0][None], no_surround), axis=0)
 
 # print("Using center+Surround stim (fuller field).")
@@ -127,6 +126,61 @@ else:
     plt.show()
 plt.close(f)
 
+# Plot truncated dataset
+f = plt.figure(figsize=(7, 4))
+try:
+    img_data = np.load("images_model_outputs/images_gammanet_full_contrast_modulated_no_surround_outputs_data.npy")
+    loaded_imgs = True
+except:
+    print("Failed to load BWC images.")
+    loaded_imgs = False
+plt.suptitle("Busse and Wade Fig 3a")
+count = 1
+ranges = np.linspace(-45, 135, 13)
+res_no_surround = no_surround.reshape(-1, 5, 5)
+idx3a = np.asarray([
+    [0, 0],
+    [0, 1],
+    [0, 2],
+    [0, 4],
+    [2, 0],
+    [2, 1],
+    [2, 2],
+    [2, 4]])
+try:
+    for c in range(4):
+        for r in range(2):
+            ax = plt.subplot(4, 4, count)
+            it_no_surround = res_no_surround[:, idx3a[count - 1, 0], idx3a[count - 1, 1]]  # noqa
+            it_no_surround = np.concatenate((it_no_surround, [it_no_surround[0]]), 0)  # noqa
+            ax.plot(ranges, it_no_surround, label="no surround", color="Black", alpha=0.5, marker=".")  # noqa
+            ax.set_ylim([-0.1, 0.1])
+            ax.set_xlim([-50, 150])
+            ax.set_xticks([-45, 0, 45, 90, 135])
+            ax.set_yticks([0, 0.1])
+            if r + c == 0:
+                plt.ylabel("Circuit activity")
+            if r + c > 0:
+                pass
+            if r == 4:
+                plt.xticks([-45, 0, 45, 90, 135])
+            else:
+                ax.set_xticklabels([""])
+
+            # Now load the image
+            ax = plt.subplot(4, 4, count + 8)
+            ax.imshow(img_data[idx3a[count - 8][1], ..., 0], cmap="Greys_r")
+            ax.axis("off")
+            count += 1
+    if file_name is not None:
+        plt.savefig(
+            os.path.join(output_dir, "{}_truncated_images.pdf".format(file_name)))
+    else:
+        plt.show()
+    plt.close(f)
+except:
+    print("Failed to plot simple fig.")
+
 # Plot model data
 ranges = np.linspace(-45, 135, no_surround.shape[0] + 1)[:no_surround.shape[0] + 1]  # noqa
 f = plt.figure(figsize=(8, 5))
@@ -134,11 +188,13 @@ max_surround, max_surround_idx = [], []
 max_no_surround, max_no_surround_idx = [], []
 plt.suptitle("Busse, Wade, & Carandini Fig 4a")
 count = 1
+model_diffs = []
 for r in range(5):
     for c in range(5):
         ax = plt.subplot(5, 5, count)
         it_no_surround = no_surround[:, count - 1]
         it_no_surround = np.concatenate((it_no_surround, [it_no_surround[0]]), 0)  # noqa
+        model_diffs.append([it_no_surround[3], it_no_surround[9]])
         ax.plot(
             ranges,
             it_no_surround,
@@ -149,18 +205,22 @@ for r in range(5):
             linewidth=linesize,
             markersize=markersize,
             marker=".")  # noqa
-        ax.set_ylim([-0.1, 0.8])  # 0.5
-        # ax.set_yticks([0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8])
-        ax.set_yticks([0, 0.2, 0.4, 0.6, 0.8])
+        # plt.title(str(contrasts[count - 1]))
+        # ax.set_ylim([-0.1, 1.1])
+        # ax.set_xlim([-50, 150])
+        # ax.set_xticks([-45, 0, 45, 90, 135])
+        # ax.set_yticks([0, 0.25, 0.5, 0.75, 1.])
+        ax.set_ylim([-0.1, 0.5])
         ax.set_xlim([-50, 150])
         ax.set_xticks([-45, 0, 45, 90, 135])
+        ax.set_yticks([0, 0.1, 0.2, 0.3, 0.4])
         if r != 4:
             ax.set_xticklabels([""])
         if c != 0:
             ax.set_yticklabels([""])
         count += 1
 
-        plt.ylim([-0.05, 0.4])
+        # plt.ylim([-0.05, 0.1])
 f.text(
     0.04,
     0.5,
@@ -171,14 +231,59 @@ if file_name is not None:
     plt.savefig(os.path.join(output_dir, "{}_model.pdf".format(file_name)))
 else:
     plt.show()
-plt.show()
+# plt.show()
 plt.close(f)
 
-# plt.imshow(no_surround)
+# Plot scatter of the differences between [3] and [9]
+neural_diffs = np.asarray(neural_diffs)
+model_diffs = np.asarray(model_diffs)
+neural_diffs = (neural_diffs - neural_diffs.min(0)) / neural_diffs.max(0)
+model_diffs = (model_diffs - model_diffs.min(0)) / model_diffs.max(0)
+
+f, ax = plt.subplots(1, 1, dpi=75)
+ax.scatter(neural_diffs[:, 0], neural_diffs[:, 1], alpha=0.6, color="black")  # noqa
+ax.set_xlim(-0.05, 1.05)
+ax.set_ylim(-0.05, 1.05)
+plt.xlabel("45 degree response")
+plt.ylabel("135 degree response")
+add_identity(ax, color='black', ls='--')
+plt.title("Neural differences")
 # plt.show()
+plt.savefig(os.path.join(output_dir, "{}_differences_neural.pdf".format(file_name)))  # noqa
+plt.close(f)
+f, ax = plt.subplots(1, 1, dpi=75)
+ax.scatter(model_diffs[:, 0], model_diffs[:, 1], alpha=0.6, color="black")  # noqa
+ax.set_xlim(-0.05, 1.05)
+ax.set_ylim(-0.05, 1.05)
+plt.xlabel("45 degree response")
+plt.ylabel("135 degree response")
+add_identity(ax, color='black', ls='--')
+plt.title("Model differences")
+# plt.show()
+plt.savefig(os.path.join(output_dir, "{}_differences_model.pdf".format(file_name)))  # noqa
+plt.close(f)
 
-os._exit(1)
-
+# Plot images as a control
+if plot_images and loaded_imgs:
+    img_data = np.load("images_model_outputs/images_gammanet_full_contrast_modulated_no_surround_outputs_data.npy")  # noqa
+    plt.suptitle("Trott and Born Fig 3C")
+    from glob import glob
+    ims = glob("contrast_modulated_no_surround/test/imgs/1/*")[::-1]
+    count = 1
+    for r in range(5):
+        for c in range(5):
+            ax = plt.subplot(5, 5, count)
+            # ax.imshow(img_data[count - 1, ..., 0][50:-50, 50:-50], cmap="Greys_r", vmin=img_data.min(), vmax=img_data.max())  # noqa
+            ax.imshow(io.imread(ims[count - 1])[50:-50, 50:-50] / (255 / 8), cmap="Greys_r", vmin=img_data.min(), vmax=img_data.max())  # noqa
+            plt.ylabel(str(contrasts[count - 1]), fontsize=8)
+            plt.axis("off")
+            count += 1
+    if file_name is not None:
+        plt.savefig(
+            os.path.join(output_dir, "{}_images.pdf".format(file_name)))
+    else:
+        plt.show()
+plt.close(f)
 
 # Prepare for stats
 no_surround_stats = no_surround.T

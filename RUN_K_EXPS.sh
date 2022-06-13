@@ -1,0 +1,4 @@
+
+python encoding_kapadia_fig_11.py INSILICO_data_all_models_gammanet_bsds_model_1376000_kapadia_outputs_data.npy
+python encoding_kinoshita_fig_11.py INSILICO_data_all_models_gammanet_bsds_model_1376000_gilbert_angelluci_flanker_kinoshita_outputs_data.npy
+

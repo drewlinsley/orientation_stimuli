@@ -46,21 +46,43 @@ args.image_size = [500, 500]
 
 # ALIGNED WITH TB2015
 args.r1_range = [31 * 3, (31 * 3) + 1]  # [100, 120]
+# args.r1_range = [33 * 3, (33 * 3) + 1]  # [100, 120]
 # args.lambda_range = [15, 16]  # [30, 90]
+# args.lambda_range = [23, 24]  # [30, 90]
+# args.lambda_range = [6, 7]
+# args.lambda_range = [18, 19]
+# args.lambda_range = [22, 23]
+# args.lambda_range = [19, 20]  # [30, 90]
+args.lambda_range = [21, 22]  # [30, 90]
+# # args.lambda_range = [20, 21]
 # args.lambda_range = [17, 18]  # [30, 90]
-# args.lambda_range = [16, 17]  # [30, 90]
-args.lambda_range = [22, 23]  # [30, 90]
+# args.lambda_range = [26, 27]
+
+## args.lambda_range = [26,27]
+
+# args.shift_range = [-150, -149]
+# args.shift_range = [120, 121]
+# args.shift_range = [180, 181]  # 180, 181]
+# args.shift_range = [120, 121]  # 180, 181]
+# args.shift_range = [75, 76]  # 180, 181]
+args.shift_range = [90, 91]
+# args.shift_range = [180, 181]
+# args.shift_range = [0, 1]
+# args.shift_range = [179, 180]  # 180, 181]
+
+# args.lambda_range = [18, 19]  # [30, 90]
+# args.lambda_range = [22, 23]  # [30, 90]
 
 # args.theta1_range = [22.5, 67.5]  # H/TD
 # args.theta2_range = [22.5, 67.5]  # H/TD
 # args.theta1_range = [-90, -89]  # H/TD
 # args.theta2_range = [-90, -89]  # H/TD
-args.theta1_range = [179, 180]  # H/TD
-args.theta2_range = [179, 180]  # H/TD
+args.theta1_range = [180, 181]  # [179, 180]  # H/TD
+args.theta2_range = [180, 181]  # [179, 180]  # H/TD
 control_stim = False
 
 # args.contrast_range = [0., 0.06, 0.12, 0.25, 0.5]
-args.contrast_range = np.asarray([0., 0.06, 0.12, 0.25, 0.5]) * 2
+args.contrast_range = np.asarray([0., 0.06, 0.12, 0.25, 0.5]) * 1.5
 dual_centers = [90]
 surround, train = True, True
 if dataset_root == "contrast_modulated_no_surround":
