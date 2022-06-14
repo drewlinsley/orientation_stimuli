@@ -184,7 +184,13 @@ elif dataset_root == "gilbert_angelluci_flanker_kinoshita":
     kapadia_contrast = [[.8, .8]]  # [[0.4, 0.4]]  # [[0.2, 0.6]]
     args.theta1_range = [0, 1]
     args.theta2_range = [0, 1]
-    args.flanker_offset_range = [-35, 60, 1]  # [-35, 90, 5]
+    args.flanker_offset_range = [-35, 40, 13]  # [-35, 90, 5]
+elif dataset_root == "gilbert_angelluci_flanker_kinoshita_center":
+    kapadia_contrast = [[.85, .85]]  # [[0.4, 0.4]]  # [[0.2, 0.6]]
+    control_stim = True  # Produce tilt-illusion-style stim (Fig. 2 of T&B)
+    surround = True
+    gilbert_mask = True  # Produce tilt-illusion-style stim (Fig. 2 of T&B)
+    gilbert_train = True
 elif dataset_root == "gilbert_angelluci_flanker_contrast_offsets":
     # args.lambda_range = [120, 121]
     control_stim = True  # Produce tilt-illusion-style stim (Fig. 2 of T&B)

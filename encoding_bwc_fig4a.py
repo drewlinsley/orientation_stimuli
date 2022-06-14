@@ -171,13 +171,12 @@ if file_name is not None:
     plt.savefig(os.path.join(output_dir, "{}_model.pdf".format(file_name)))
 else:
     plt.show()
-plt.show()
 plt.close(f)
 
 # plt.imshow(no_surround)
 # plt.show()
 
-os._exit(1)
+# os._exit(1)
 
 
 # Prepare for stats

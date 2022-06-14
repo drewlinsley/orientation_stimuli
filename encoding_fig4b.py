@@ -378,7 +378,7 @@ if file_name is not None:
     plt.savefig(os.path.join(output_dir_full, "{}_model.pdf".format(file_name)))  # noqa
 else:
     plt.show()
-plt.show()
+# plt.show()
 plt.close(f)
 
 # # Stats

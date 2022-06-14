@@ -34,6 +34,8 @@ python tb_stim_wrapper.py 1 1 1 gilbert_angelluci_flanker_only
 python tb_stim_wrapper.py 1 1 1 gilbert_angelluci_t_flanker_only
 python tb_stim_wrapper.py 1 1 1 gilbert_angelluci_t_flanker
 python tb_stim_wrapper.py 1 1 1 gilbert_angelluci_horizontal_flanker_only
+python tb_stim_wrapper.py 1 1 1 gilbert_angelluci_flanker_kinoshita_center
+python tb_stim_wrapper.py 1 1 1 gilbert_angelluci_flanker_kinoshita
 
 # Prepare the kapadia dataset
 rm -rf kapadia_experiment
@@ -49,10 +51,9 @@ cp gilbert_angelluci_t_flanker/test/imgs/1/sample_180.png kapadia_experiment/tes
 cp gilbert_angelluci_horizontal_flanker_only/test/imgs/1/sample_180.png kapadia_experiment/test/imgs/1/sample_176.png  # T flanker only
 python prepare_kapadia_fig11_data.py
 
-python tb_stim_wrapper.py 1 1 1 gilbert_angelluci_flanker_kinoshita
 # Fix the gilbert_angelluci_flanker_kinoshita dataset (add a center only stim)
 rm gilbert_angelluci_flanker_kinoshita/test/imgs/1/sample_180.png
-cp gilbert_angelluci_flanker_contrast_offsets/test/imgs/1/sample_0.png gilbert_angelluci_flanker_kinoshita/test/imgs/1/sample_0.png
+cp gilbert_angelluci_flanker_kinoshita_center/test/imgs/1/sample_1.png gilbert_angelluci_flanker_kinoshita/test/imgs/1/sample_0.png
 python prepare_kinoshita_fig11_data.py
 
 # Remove old images

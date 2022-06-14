@@ -16,6 +16,7 @@ file_dir = "model_outputs"
 stim_orientation = 0
 paper_dir = "digitized_data/drew"
 paper_path_0 = os.path.join(paper_dir, "kinoshita_fig11_s0.npy")
+show_figs = False
 
 # Create folder
 output_dir = "results_kinoshita_fig11"
@@ -34,8 +35,11 @@ plt.suptitle("Kinoshita '09 Figure 11")
 # f.text(0.5, 0.01, "Populations' preferred orientation", ha='center')
 
 # Load model data
-model_data = np.load(os.path.join(file_dir, file_name))[stim_orientation]
-plt.subplot(121);plt.plot(np.load(paper_path_0));plt.subplot(122);plt.plot(model_data);plt.show()
+try:
+    model_data = np.load(file_name)[stim_orientation]
+except:
+    model_data = np.load(os.path.join(file_dir, file_name))[stim_orientation]
+# plt.subplot(121);plt.plot(np.load(paper_path_0));plt.subplot(122);plt.plot(model_data);plt.show()
 model_data = model_data[:6]
 
 # Normalize model data
@@ -62,8 +66,12 @@ axs[1].plot(np.arange(len(model_data)), model_data, marker="o", color="#0092d6")
 axs[1].axhline(y=1., color="black", linestyle="--", alpha=0.7)
 axs[1].set_ylim([0.6, 1.5])
 
-plt.savefig(os.path.join(output_dir, "{}_model.pdf".format(file_name)))
-plt.show()
+try:
+    plt.savefig("{}_model.pdf".format(file_name))
+except:
+    plt.savefig(os.path.join(output_dir, "{}_model.pdf".format(file_name)))
+if show_figs:
+    plt.show()
 
 # Measure the similarity
 bias = np.ones_like(paper_data_0.reshape(-1, 1))
@@ -73,7 +81,11 @@ X = np.concatenate((
 ), -1)
 clf = sm.OLS(paper_data_0.reshape(-1, 1), X).fit()
 mean_sim = clf.rsquared
-np.save(
-    os.path.join(output_dir, "{}_diff_scores".format(file_name)), [mean_sim, file_name])
+
+try:
+    np.save("{}_diff_scores".format(file_name), [mean_sim, file_name])
+except:
+    np.save(
+        os.path.join(output_dir, "{}_diff_scores".format(file_name)), [mean_sim, file_name])
 print("Kinoshita {} r^2: {}".format(file_name, mean_sim))
 

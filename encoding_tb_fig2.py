@@ -246,12 +246,14 @@ for idx, (theta, label) in enumerate(thetas.items()):
         ax.set_ylabel("Neural activity")
 
 # Model Plots
+cat_surrounds = []
 for idx, (theta, label) in enumerate(thetas.items()):
     theta = int(theta)
     ax = axs[2, idx]
     it_surround = surround[:, theta]
     it_no_surround = no_surround[:, 90]
     it_model_no_surround = model_po_fit[3]
+    cat_surrounds.append(it_surround)
 
     # points
     ax.plot(
@@ -339,7 +341,8 @@ if file_name is not None:
     plt.savefig(os.path.join(output_dir_full, "{}_model.pdf".format(file_name)))
 else:
     plt.show()
-plt.show()
+cat_surrounds = np.asarray(cat_surrounds)
+# plt.show()
 plt.close(f)
 
 # # Stats
@@ -378,15 +381,17 @@ gt_arg_mags = gt_arg_mags_no_surround - gt_arg_mags_surround
 y = arg_mags.reshape(-1, 1)
 
 # Fit model
-clf = sm.OLS(y, X).fit()
-r2 = clf.rsquared
-# THIS IS THE DEFAULT SCORE
-# print("Arg score {}".format(r2))
-np.save(os.path.join(output_dir_full, "{}_full_scores".format(file_name)), [r2, file_name])  # noqa
+# clf = sm.OLS(y, X).fit()
+# r2 = clf.rsquared
+# # THIS IS THE DEFAULT SCORE
+# # print("Arg score {}".format(r2))
+# np.save(os.path.join(output_dir_full, "{}_full_scores".format(file_name)), [r2, file_name])  # noqa
 
 # compare full curve fits
-y = np.concatenate((po_fit.ravel(), ps_fit.ravel()), 0)
-X = np.concatenate((model_po_fit.ravel(), model_ps_fit.ravel()), 0)
+y = np.concatenate((neural_no_surround.ravel(), neural_surround.ravel()), 0)
+X = np.concatenate((no_surround[:, 90].reshape(1, -1).repeat(6, 0).ravel(), cat_surrounds.ravel()), 0)
+# y = np.concatenate((po_fit.ravel(), ps_fit.ravel()), 0)
+# X = np.concatenate((model_po_fit.ravel(), model_ps_fit.ravel()), 0)
 X = np.stack((np.ones((len(X))), X), -1)
 clf = sm.OLS(y, X).fit()
 r2 = clf.rsquared

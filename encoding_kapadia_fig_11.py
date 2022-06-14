@@ -17,6 +17,7 @@ stim_orientation = 0
 paper_dir = "digitized_data/drew"
 paper_path_0 = os.path.join(paper_dir, "kapadia_fig11_s0.npy")
 paper_path_1 = os.path.join(paper_dir, "kapadia_fig11_s1.npy")
+show_figs = False
 
 # Create folder
 output_dir = "results_kapadia_fig11"
@@ -35,7 +36,10 @@ plt.suptitle("Kapadia '95 Figure 11")
 # f.text(0.5, 0.01, "Populations' preferred orientation", ha='center')
 
 # Load model data
-model_data = np.load(os.path.join(file_dir, file_name))[stim_orientation]
+try:
+    model_data = np.load(os.path.join(file_name))[stim_orientation]
+except:
+    model_data = np.load(os.path.join(file_dir, file_name))[stim_orientation]
 
 # Load paper data
 paper_data_0 = np.load(paper_path_0)
@@ -50,12 +54,17 @@ axs[1].set_ylabel("Spikes/sec")
 axs[1].bar(np.arange(len(paper_data_1)), paper_data_1, width=0.5, color="#d1040e")
 axs[1].get_xaxis().set_ticklabels([])
 
-axs[2].set_ylabel("Normalized firing rate")
+axs[2].set_ylabel("Firing rate")
 axs[2].bar(np.arange(len(model_data)), model_data, width=0.5, color="#0092d6")
 axs[2].get_xaxis().set_ticklabels([])
 
-plt.savefig(os.path.join(output_dir, "{}_model.pdf".format(file_name)))
-plt.show()
+try:
+    plt.savefig("{}_model.pdf".format(file_name))
+except:
+    plt.savefig(os.path.join(output_dir, "{}_model.pdf".format(file_name)))
+
+if show_figs:
+    plt.show()
 
 # Measure the similarity
 bias = np.ones_like(paper_data_0.reshape(-1, 1))
@@ -75,7 +84,10 @@ clf = sm.OLS(paper_data_1.reshape(-1, 1), X).fit()
 paper_sim_1 = clf.rsquared
 
 mean_sim = (paper_sim_0 + paper_sim_1) / 2
-np.save(
-    os.path.join(output_dir, "{}_diff_scores".format(file_name)), [mean_sim, file_name])
+try:
+    np.save("{}_diff_scores".format(file_name), [mean_sim, file_name])
+except:
+    np.save(
+        os.path.join(output_dir, "{}_diff_scores".format(file_name)), [mean_sim, file_name])
 print("Kapadia {} r^2: {}".format(file_name, mean_sim))
 

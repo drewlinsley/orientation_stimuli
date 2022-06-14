@@ -82,7 +82,7 @@ if file_name is not None:
     plt.savefig(os.path.join(output_dir, "{}_center_only.pdf".format(file_name)))
 else:
     plt.show()
-plt.show()
+# plt.show()
 plt.close(f)
 
 # Surround
@@ -120,7 +120,7 @@ if file_name is not None:
     plt.savefig(os.path.join(output_dir, "{}_center_surround.pdf".format(file_name)))  # noqa
 else:
     plt.show()
-plt.show()
+# plt.show()
 plt.close(f)
 
 # Surround-control

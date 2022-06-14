@@ -39,6 +39,7 @@ do
     # Optimize synthetic neurons
     python $ENCODER --responses=${RESPONSE_DIR}/${MODEL_NAME}/${MODEL_NAME}_orientation_test_no_surround --meta_dim=12 --train_model --model_file=$TB_MODEL --train_moments=$TB_MOMENTS --channels=$TB_CHANNELS --exp_diff=$TB_EXPDIFF --population  #  --debug
     python $ENCODER --responses=${RESPONSE_DIR}/${MODEL_NAME}/${MODEL_NAME}_orientation_test_no_surround --meta_dim=12 --train_model --model_file=$BWC_MODEL --train_moments=$BWC_MOMENTS --channels=$BWC_CHANNELS --exp_diff=$BWC_EXPDIFF --population # --extract_key=conv2_2  #  --debug
+    python $ENCODER --responses=${RESPONSE_DIR}/${MODEL_NAME}/${MODEL_NAME}_gilbert_train --meta_dim=12 --train_model --model_file=$KAPADIA_MODEL --train_moments=$KAPADIA_MOMENTS --channels=$KAPADIA_CHANNELS --exp_diff=$KAPADIA_EXPDIFF --population --meta_col=8  # --debug
 
     # Get responses on TB
     python $ENCODER --responses=${RESPONSE_DIR}/${MODEL_NAME}/${MODEL_NAME}_plaid_surround --model_output=${OUTPUTS_DIR}/${MODEL_NAME}_plaid_surround_outputs_data.npy --meta_dim=12 --model_file=$TB_MODEL --train_moments=$TB_MOMENTS --channels=$TB_CHANNELS --population  #  --debug
@@ -50,12 +51,21 @@ do
     # Get responses on BWC
     python $ENCODER --responses=${RESPONSE_DIR}/${MODEL_NAME}/${MODEL_NAME}_contrast_test_no_surround --model_output=${OUTPUTS_DIR}/${MODEL_NAME}_contrast_modulated_no_surround_outputs_data.npy --meta_dim=14 --model_file=$BWC_MODEL --train_moments=$BWC_MOMENTS --channels=$BWC_CHANNELS --population  # --debug
 
+    # Get responses on Kapadia
+    python $ENCODER --responses=${RESPONSE_DIR}/${MODEL_NAME}/${MODEL_NAME}_gilbert_train --model_output=${OUTPUTS_DIR}/${MODEL_NAME}_gilbert_train_outputs_data.npy --meta_dim=12 --model_file=$KAPADIA_MODEL --train_moments=$KAPADIA_MOMENTS --channels=$KAPADIA_CHANNELS --population
+    # python $ENCODER --responses=${RESPONSE_DIR}/${MODEL_NAME}/${MODEL_NAME}_gilbert_flanker_offsets --model_output=${OUTPUTS_DIR}/${MODEL_NAME}_gilbert_flanker_offsets_outputs_data.npy --meta_dim=12 --model_file=$KAPADIA_MODEL --train_moments=$KAPADIA_MOMENTS --channels=$KAPADIA_CHANNELS --population
+    # python $ENCODER --responses=${RESPONSE_DIR}/${MODEL_NAME}/${MODEL_NAME}_gilbert_flanker_rotations --model_output=${OUTPUTS_DIR}/${MODEL_NAME}_gilbert_flanker_rotations_outputs_data.npy --meta_dim=12 --model_file=$KAPADIA_MODEL --train_moments=$KAPADIA_MOMENTS --channels=$KAPADIA_CHANNELS --population
+    python $ENCODER --responses=${RESPONSE_DIR}/${MODEL_NAME}/${MODEL_NAME}_kapadia_experiment --model_output=${OUTPUTS_DIR}/${MODEL_NAME}_kapadia_outputs_data.npy --meta_dim=12 --model_file=$KAPADIA_MODEL --train_moments=$KAPADIA_MOMENTS --channels=$KAPADIA_CHANNELS --population
+    # python $ENCODER --responses=${RESPONSE_DIR}/${MODEL_NAME}/${MODEL_NAME}_gilbert_flanker_contrast_offsets --model_output=${OUTPUTS_DIR}/${MODEL_NAME}_gilbert_flanker_contrast_offsets_outputs_data.npy --meta_dim=12 --model_file=$KAPADIA_MODEL --train_moments=$KAPADIA_MOMENTS --channels=$KAPADIA_CHANNELS --population
+    python $ENCODER --responses=${RESPONSE_DIR}/${MODEL_NAME}/${MODEL_NAME}_gilbert_angelluci_flanker_kinoshita --model_output=${OUTPUTS_DIR}/${MODEL_NAME}_gilbert_angelluci_flanker_kinoshita_outputs_data.npy --meta_dim=12 --model_file=$KAPADIA_MODEL --train_moments=$KAPADIA_MOMENTS --channels=$KAPADIA_CHANNELS --population
+
     # Plot results
-    echo $MODEL_NAME ${OUTPUTS_DIR}/${MODEL_NAME}_contrast_modulated_no_surround_outputs_data.npy
-    # python encoding_plot_orientation_responses.py $MODEL_NAME ${OUTPUTS_DIR}/${MODEL_NAME}_orientation_probe_no_surround_outputs_data.npy ${OUTPUTS_DIR}/${MODEL_NAME}_orientation_probe_outputs_data.npy ${OUTPUTS_DIR}/${MODEL_NAME}_surround_control_outputs.npy
-    # python encoding_fig4b.py $MODEL_NAME ${OUTPUTS_DIR}/${MODEL_NAME}_plaid_no_surround_outputs_data.npy ${OUTPUTS_DIR}/${MODEL_NAME}_plaid_surround_outputs_data.npy
-    # python encoding_tb_fig2.py $MODEL_NAME ${OUTPUTS_DIR}/${MODEL_NAME}_plaid_no_surround_outputs_data.npy ${OUTPUTS_DIR}/${MODEL_NAME}_orientation_tilt_outputs_data.npy
+    python encoding_plot_orientation_responses.py $MODEL_NAME ${OUTPUTS_DIR}/${MODEL_NAME}_orientation_probe_no_surround_outputs_data.npy ${OUTPUTS_DIR}/${MODEL_NAME}_orientation_probe_outputs_data.npy ${OUTPUTS_DIR}/${MODEL_NAME}_surround_control_outputs.npy
+    python encoding_fig4b.py $MODEL_NAME ${OUTPUTS_DIR}/${MODEL_NAME}_plaid_no_surround_outputs_data.npy ${OUTPUTS_DIR}/${MODEL_NAME}_plaid_surround_outputs_data.npy
+    python encoding_tb_fig2.py $MODEL_NAME ${OUTPUTS_DIR}/${MODEL_NAME}_plaid_no_surround_outputs_data.npy ${OUTPUTS_DIR}/${MODEL_NAME}_orientation_tilt_outputs_data.npy
     python encoding_bwc_fig4a.py $MODEL_NAME ${OUTPUTS_DIR}/${MODEL_NAME}_contrast_modulated_no_surround_outputs_data.npy
+    python encoding_kapadia_fig_11.py ${OUTPUTS_DIR}/${MODEL_NAME}_kapadia_outputs_data.npy 
+    python encoding_kinoshita_fig_11.py ${OUTPUTS_DIR}/${MODEL_NAME}_gilbert_angelluci_flanker_kinoshita_outputs_data.npy
     echo "END"
 done
 
